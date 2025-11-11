@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:app_clubee/services/api_service.dart';
 import 'package:app_clubee/services/auth_service.dart';
