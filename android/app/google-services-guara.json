@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "946663540886",
+    "project_id": "guaraacquapark",
+    "storage_bucket": "guaraacquapark.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:946663540886:android:d9d46d082fa5a76215dab7",
+        "android_client_info": {
+          "package_name": "com.guaraapp"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "946663540886-s0errskugkf3vucagqbeffr795p9utb5.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDmDTK-zlxf-R0O4HhYuwyieskrklQaOhw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "946663540886-s0errskugkf3vucagqbeffr795p9utb5.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

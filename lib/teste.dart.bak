@@ -1,0 +1,21 @@
+Future<void> _handleWebMessage(String message) async {
+    _log.debug('Received message: $message');
+
+    // Parse a mensagem no formato operacao:value
+    final parts = message.split(':');
+    if (parts.length != 2) {
+      _log.warning('Invalid message format: $message');
+      return;
+    }
+
+    final operacao = parts[0];
+    final value = parts[1];
+
+    switch (operacao) {
+      case 'print-agendamento':
+        await _printAgendamento(value);
+        break;
+      default:
+        _log.warning('Unknown operation: $operacao');
+    }
+  }

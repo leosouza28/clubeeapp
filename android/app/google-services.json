@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "496740878254",
+    "project_id": "valedasminasapp",
+    "storage_bucket": "valedasminasapp.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:496740878254:android:20baad91eb5604c6a56a3f",
+        "android_client_info": {
+          "package_name": "com.valedasminas"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCj0GHpazu-PRcMGAsgxchRwAltqr6O9zE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

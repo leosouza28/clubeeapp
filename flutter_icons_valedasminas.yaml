@@ -1,0 +1,16 @@
+flutter_icons:
+  android: true
+  ios: true
+  image_path: "assets/icons/valedasminas/icon.png"
+  min_sdk_android: 21
+  web:
+    generate: false
+  windows:
+    generate: false
+  macos:
+    generate: false
+  linux:
+    generate: false
+  remove_alpha_ios: true
+  adaptive_icon_background: "#4CAF50"
+  adaptive_icon_foreground: "assets/icons/valedasminas/adaptive_icon.png"
