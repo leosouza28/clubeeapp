@@ -179,6 +179,7 @@ class ConvidadoModel {
   final bool retirado;
   final DateTime? dataHoraRetirada;
   final PessoaMenorIdadeModel? pessoaMenorIdade;
+  final String? qrcodeData;
 
   const ConvidadoModel({
     required this.id,
@@ -190,6 +191,7 @@ class ConvidadoModel {
     required this.retirado,
     this.dataHoraRetirada,
     this.pessoaMenorIdade,
+    this.qrcodeData,
   });
 
   factory ConvidadoModel.fromJson(Map<String, dynamic> json) {
@@ -209,6 +211,7 @@ class ConvidadoModel {
               json['pessoa_menor_idade'] as Map<String, dynamic>,
             )
           : null,
+      qrcodeData: json['_qrcode_data'] as String?,
     );
   }
 }

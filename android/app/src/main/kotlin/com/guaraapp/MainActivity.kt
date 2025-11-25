@@ -1,4 +1,4 @@
-package com.valedasminas
+package com.guaraapp
 
 import android.content.Intent
 import android.os.Bundle

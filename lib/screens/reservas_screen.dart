@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 import '../models/cortesia_model.dart';
 import '../services/api_service.dart';
 import '../services/client_service.dart';
@@ -1057,6 +1058,39 @@ class _ReservasScreenState extends State<ReservasScreen>
             Text(
               'Retirado em: ${_formatarDataHora(convidado.dataHoraRetirada!)}',
               style: TextStyle(color: Colors.grey.shade600, fontSize: 11),
+            ),
+          ],
+          if (convidado.qrcodeData != null &&
+              convidado.qrcodeData!.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.grey.shade300),
+              ),
+              child: Column(
+                children: [
+                  Text(
+                    'QR Code do Convidado',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.grey.shade700,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Center(
+                    child: QrImageView(
+                      data: convidado.qrcodeData!,
+                      version: QrVersions.auto,
+                      size: 150,
+                      backgroundColor: Colors.white,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ],
         ],

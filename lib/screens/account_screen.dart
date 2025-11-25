@@ -2105,7 +2105,6 @@ class _AccountScreenState extends State<AccountScreen> {
     if (privacyPolicyUrl.isNotEmpty) {
       // Abrir link externo
       try {
-        // print('🔗 Abrindo política de privacidade: $privacyPolicyUrl');
         final uri = Uri.parse(privacyPolicyUrl);
         if (await canLaunchUrl(uri)) {
           await launchUrl(uri, mode: LaunchMode.platformDefault);

@@ -238,6 +238,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildModernButtons(BuildContext context) {
     final appConfigService = AppConfigService.instance;
     final bilheteriaConfig = appConfigService.appConfig?.bilheteriaAppConfig;
+    final clubeNome = appConfigService.appConfig?.clube.nome ?? 'Clube';
 
     // Verificar se deve mostrar o botão de ingressos
     final shouldShowIngressos =
@@ -298,7 +299,7 @@ class _HomeScreenState extends State<HomeScreen> {
         const SizedBox(height: 12),
         _buildActionCard(
           context: context,
-          title: 'Contato com o Clube',
+          title: 'Contato com o $clubeNome',
           subtitle: 'Tire suas dúvidas conosco',
           icon: Icons.support_agent,
           gradient: LinearGradient(
@@ -1196,6 +1197,7 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     try {
+      print('Abrindo URL de ingressos: $url');
       final uri = Uri.parse(url);
       if (await canLaunchUrl(uri)) {
         await launchUrl(uri, mode: LaunchMode.externalApplication);

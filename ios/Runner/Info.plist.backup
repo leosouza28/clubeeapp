@@ -39,24 +39,26 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSUserTrackingUsageDescription</key>
+	<string>Usamos seu identificador de dispositivo apenas se você permitir, para mensurar campanhas e personalizar ofertas do parque. Você pode usar o app normalmente mesmo negando.</string>
 	<key>NSBluetoothAlwaysUsageDescription</key>
 	<string>O app precisa de acesso ao Bluetooth para conectar e imprimir em impressoras térmicas.</string>
 	<key>NSBluetoothPeripheralUsageDescription</key>
 	<string>O app precisa de acesso ao Bluetooth para se comunicar com impressoras e dispositivos externos.</string>
 	<key>NSCameraUsageDescription</key>
-	<string>Este aplicativo precisa acessar a câmera para capturar fotos e vídeos.</string>
+	<string>O app precisa de acesso a Câmera para capturar sua foto para usar no perfil, carteirinha virtual.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-	<string>Este aplicativo precisa acessar sua localização para fornecer serviços baseados em localização.</string>
+	<string>O app precisa de acesso a sua localização para fornecer serviços baseados em localização.</string>
 	<key>NSLocationAlwaysUsageDescription</key>
-	<string>Este aplicativo precisa acessar sua localização para fornecer serviços baseados em localização.</string>
+	<string>O app precisa de acesso a sua localização para fornecer serviços baseados em localização.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>Este aplicativo precisa acessar sua localização para fornecer serviços baseados em localização.</string>
+	<string>O app precisa de acesso a sua localização para fornecer serviços baseados em localização.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Este aplicativo precisa acessar o microfone para gravar áudio.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>Este aplicativo precisa acessar suas fotos para salvar imagens.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>Este aplicativo precisa acessar suas fotos para que você possa compartilhar imagens.</string>
+	<string>Este aplicativo precisa acessar suas fotos para que você escolher imagens da galeria para o seu perfil, carteirinha virtual.</string>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 	<key>UIBackgroundModes</key>

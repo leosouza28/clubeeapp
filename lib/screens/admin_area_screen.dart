@@ -23,7 +23,7 @@ class AdminAreaScreen extends StatefulWidget {
 }
 
 class _AdminAreaScreenState extends State<AdminAreaScreen> {
-  late WebViewController _controller;
+  WebViewController? _controller;
   BluetoothInfo? _savedPrinter;
   bool _isBluetoothPermissionGranted = false;
   bool _isConnecting = false;
@@ -507,6 +507,10 @@ class _AdminAreaScreenState extends State<AdminAreaScreen> {
         appConfigService.appConfig == null ||
         appConfigService.appConfig!.urlAdministrativoV2.isEmpty) {
       _log.error('AppConfigService não inicializado');
+      setState(() {
+        _errorMessage = 'Serviço de configuração não inicializado';
+        _isLoading = false;
+      });
       return;
     }
     final authService = await AuthService.getInstance();
@@ -545,8 +549,9 @@ class _AdminAreaScreenState extends State<AdminAreaScreen> {
             setState(() {
               _isLoading = true;
             });
+            _log.debug('onPageStarted: $url');
             // Injetar JavaScript para definir window.isApp = true
-            _controller.runJavaScript('''
+            _controller?.runJavaScript('''
                 window.isApp = true;
                 window.sendToFlutter = (payload)=>{
                   AppChannel.postMessage(payload);
@@ -554,11 +559,12 @@ class _AdminAreaScreenState extends State<AdminAreaScreen> {
               ''');
           },
           onPageFinished: (String url) {
+            _log.debug('Página carregada: $url');
             setState(() {
               _isLoading = false;
             });
             // Garantir que o JavaScript seja injetado também após o carregamento
-            _controller.runJavaScript('''
+            _controller?.runJavaScript('''
                 window.isApp = true;
                 window.sendToFlutter = (payload)=>{
                   AppChannel.postMessage(payload);
@@ -578,131 +584,200 @@ class _AdminAreaScreenState extends State<AdminAreaScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Área Administrativa'),
-        actions: [
-          PopupMenuButton<String>(
-            onSelected: (value) {
-              switch (value) {
-                case 'search_printer':
-                  _searchAndSelectPrinter();
-                  break;
-                case 'test_print':
-                  _testPrint();
-                  break;
-                case 'delete_printer':
-                  _deleteSavedPrinter();
-                  break;
-              }
-            },
-            itemBuilder: (context) => [
-              PopupMenuItem<String>(
-                value: 'search_printer',
-                enabled: !_isConnecting,
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.search,
-                      color: _isConnecting ? Colors.grey : null,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Buscar Impressora',
-                      style: TextStyle(
-                        color: _isConnecting ? Colors.grey : null,
-                      ),
-                    ),
-                  ],
+    if (_errorMessage != null) {
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text('Área Administrativa'),
+          backgroundColor: Theme.of(context).primaryColor,
+          foregroundColor: Colors.white,
+        ),
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.error_outline, size: 64, color: Colors.red.shade300),
+              const SizedBox(height: 16),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 32),
+                child: Text(
+                  _errorMessage!,
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.bodyLarge,
                 ),
               ),
-              PopupMenuItem<String>(
-                value: 'test_print',
-                enabled: _savedPrinter != null && !_isConnecting,
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.print,
-                      color: (_savedPrinter == null || _isConnecting)
-                          ? Colors.grey
-                          : Colors.green,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Testar Impressão',
-                      style: TextStyle(
+              const SizedBox(height: 24),
+              ElevatedButton.icon(
+                onPressed: () {
+                  setState(() {
+                    _errorMessage = null;
+                    _isLoading = true;
+                  });
+                  _initializeScreen();
+                },
+                icon: const Icon(Icons.refresh),
+                label: const Text('Tentar novamente'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (bool didPop, dynamic result) async {
+        if (didPop) return;
+        final canGoBack = await _controller?.canGoBack() ?? false;
+        // Pegar a url atual da webview
+        final currentUrl = await _controller?.currentUrl();
+        // Se a tela for o /inicio e cangoback: true
+        final isInicio = currentUrl != null && currentUrl.contains('/inicio');
+
+        if (_controller != null && canGoBack) {
+          if (isInicio) {
+            if (context.mounted) {
+              Navigator.of(context).pop();
+            }
+          } else {
+            await _controller!.goBack();
+          }
+        } else {
+          if (context.mounted) {
+            Navigator.of(context).pop();
+          }
+        }
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Área Administrativa'),
+          actions: [
+            PopupMenuButton<String>(
+              onSelected: (value) {
+                switch (value) {
+                  case 'search_printer':
+                    _searchAndSelectPrinter();
+                    break;
+                  case 'test_print':
+                    _testPrint();
+                    break;
+                  case 'delete_printer':
+                    _deleteSavedPrinter();
+                    break;
+                }
+              },
+              itemBuilder: (context) => [
+                PopupMenuItem<String>(
+                  value: 'search_printer',
+                  enabled: !_isConnecting,
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.search,
+                        color: _isConnecting ? Colors.grey : null,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Buscar Impressora',
+                        style: TextStyle(
+                          color: _isConnecting ? Colors.grey : null,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                PopupMenuItem<String>(
+                  value: 'test_print',
+                  enabled: _savedPrinter != null && !_isConnecting,
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.print,
                         color: (_savedPrinter == null || _isConnecting)
                             ? Colors.grey
                             : Colors.green,
                       ),
-                    ),
-                  ],
+                      const SizedBox(width: 8),
+                      Text(
+                        'Testar Impressão',
+                        style: TextStyle(
+                          color: (_savedPrinter == null || _isConnecting)
+                              ? Colors.grey
+                              : Colors.green,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              PopupMenuItem<String>(
-                value: 'delete_printer',
-                enabled: _savedPrinter != null && !_isConnecting,
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.delete,
-                      color: (_savedPrinter == null || _isConnecting)
-                          ? Colors.grey
-                          : Colors.red,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Excluir Impressora',
-                      style: TextStyle(
+                PopupMenuItem<String>(
+                  value: 'delete_printer',
+                  enabled: _savedPrinter != null && !_isConnecting,
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.delete,
                         color: (_savedPrinter == null || _isConnecting)
                             ? Colors.grey
                             : Colors.red,
                       ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Excluir Impressora',
+                        style: TextStyle(
+                          color: (_savedPrinter == null || _isConnecting)
+                              ? Colors.grey
+                              : Colors.red,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+        body: Column(
+          children: [
+            // Status da impressora
+            if (_savedPrinter != null)
+              Container(
+                width: double.infinity,
+                color: Colors.green.withValues(alpha: 0.1),
+                padding: const EdgeInsets.all(8),
+                child: Row(
+                  children: [
+                    const Icon(Icons.print, color: Colors.green),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Impressora: ${_savedPrinter!.name}',
+                        style: const TextStyle(
+                          color: Colors.green,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                     ),
+                    if (_isConnecting)
+                      const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            Colors.green,
+                          ),
+                        ),
+                      ),
                   ],
                 ),
               ),
-            ],
-          ),
-        ],
-      ),
-      body: Column(
-        children: [
-          // Status da impressora
-          if (_savedPrinter != null)
-            Container(
-              width: double.infinity,
-              color: Colors.green.withValues(alpha: 0.1),
-              padding: const EdgeInsets.all(8),
-              child: Row(
-                children: [
-                  const Icon(Icons.print, color: Colors.green),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'Impressora: ${_savedPrinter!.name}',
-                      style: const TextStyle(
-                        color: Colors.green,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                  if (_isConnecting)
-                    const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        valueColor: AlwaysStoppedAnimation<Color>(Colors.green),
-                      ),
-                    ),
-                ],
-              ),
-            ),
 
-          // WebView
-          Expanded(child: WebViewWidget(controller: _controller)),
-        ],
+            // WebView
+            if (_controller != null)
+              Expanded(child: WebViewWidget(controller: _controller!))
+            else
+              const Expanded(child: Center(child: CircularProgressIndicator())),
+          ],
+        ),
       ),
     );
   }

@@ -1,9 +1,11 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'package:app_clubee/services/logging_service.dart';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
+import 'package:logger/logger.dart';
 import '../config/client_type.dart';
 import '../models/login_model.dart';
 import '../services/client_service.dart';
@@ -50,7 +52,7 @@ class ApiService {
     final config = _clientConfigs[clientType]!;
     final String apiUrl;
     if (kDebugMode) {
-      apiUrl = 'http://192.168.0.219:${config['port']}';
+      apiUrl = 'http://192.168.100.203:${config['port']}';
     } else {
       apiUrl = config['apiUrl'];
     }
@@ -803,6 +805,8 @@ class ApiService {
         if (responseData is List) {
           final List<Map<String, dynamic>> cortesias = responseData
               .cast<Map<String, dynamic>>();
+
+          LoggingService.instance.json(cortesias);
 
           return ApiResponse.success(cortesias);
         } else {

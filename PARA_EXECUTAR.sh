@@ -90,9 +90,13 @@ sh ./scripts/configure_client.sh guara
 sh ./scripts/generate_icons.sh guara
 flutter clean && flutter pub get
 cd ios && pod install && cd .. && flutter build ipa --dart-define=CLIENT_TYPE=guara
+# Android
+flutter build appbundle --dart-define=CLIENT_TYPE=guara
 
 # Build IPA iOS - Vale das Minas
 sh ./scripts/configure_client.sh vale_das_minas
 sh ./scripts/generate_icons.sh vale_das_minas
 flutter clean && flutter pub get
 cd ios && pod install && cd .. && flutter build ipa --dart-define=CLIENT_TYPE=vale_das_minas
+# Android
+flutter build appbundle --dart-define=CLIENT_TYPE=vale_das_minas

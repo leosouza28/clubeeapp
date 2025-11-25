@@ -5,6 +5,7 @@ import 'services/client_service.dart';
 import 'services/firebase_service.dart';
 import 'services/logging_service.dart';
 import 'services/deep_link_service.dart';
+import 'services/tracking_service.dart';
 import 'screens/app_config_loading_screen.dart';
 import 'screens/cortesia_link_screen.dart';
 
@@ -17,6 +18,9 @@ void main() async {
 
   // Inicializar Firebase para o cliente atual
   await FirebaseService.instance.initializeForClient(clientType);
+
+  // Solicitar permissão de rastreamento (iOS)
+  await TrackingService.instance.requestTrackingAuthorization();
 
   // Imprimir informações do ambiente em debug
   ClientEnvironment.printEnvironmentInfo();
