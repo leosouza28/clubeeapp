@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:table_calendar/table_calendar.dart';
@@ -5,11 +6,14 @@ import '../services/client_service.dart';
 import '../services/api_service.dart';
 import '../services/app_config_service.dart';
 import '../services/auth_service.dart';
+import '../services/deep_link_service.dart';
+import '../services/logging_service.dart';
 import '../models/calendario_model.dart';
 import '../models/titulo_model.dart';
 import 'account_screen.dart';
 import 'reservas_screen.dart';
 import 'contato_clube_screen.dart';
+import 'cortesia_link_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   final VoidCallback? onNavigateToAccount;
@@ -26,6 +30,9 @@ class _HomeScreenState extends State<HomeScreen> {
   DateTime _focusedDay = DateTime.now();
   DateTime? _selectedDay;
   Map<DateTime, DiaFuncionamentoModel> _eventosCalendario = {};
+  final DeepLinkService _deepLinkService = DeepLinkService.instance;
+  final LoggingService _log = LoggingService.instance;
+  StreamSubscription<String>? _deepLinkSubscription;
 
   @override
   void initState() {
@@ -33,6 +40,94 @@ class _HomeScreenState extends State<HomeScreen> {
     _selectedDay = DateTime.now();
     _carregarCalendario();
     _verificarAcesso();
+    _initializeDeepLinks();
+  }
+
+  void _initializeDeepLinks() {
+    // Escutar novos deep links
+    _deepLinkSubscription = _deepLinkService.onDeepLink.listen((link) {
+      _log.info('🔗 Deep link received in HomeScreen: $link');
+      _handleDeepLink(link);
+    });
+  }
+
+  void _handleDeepLink(String link) {
+    final info = _deepLinkService.parseDeepLink(link);
+
+    if (info == null) {
+      _log.warning('Failed to parse deep link: $link');
+      return;
+    }
+
+    _log.success('Processing deep link: ${info.toString()}');
+
+    // Aguardar frame para garantir que a tela está montada
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+
+      switch (info.type) {
+        case DeepLinkType.reservas:
+          _navegarParaReservas(context);
+          break;
+
+        case DeepLinkType.reservaViaLink:
+          if (info.id != null) {
+            _navegarParaReservaViaLink(info.id!);
+          } else {
+            _log.warning('Reserva via link sem ID');
+          }
+          break;
+
+        case DeepLinkType.eventos:
+          _log.info('Navegação para eventos (implementar se necessário)');
+          break;
+
+        case DeepLinkType.promocoes:
+          _log.info('Navegação para promoções (implementar se necessário)');
+          break;
+
+        case DeepLinkType.evento:
+          if (info.id != null) {
+            _log.info(
+              'Navegação para evento ${info.id} (implementar se necessário)',
+            );
+          }
+          break;
+
+        case DeepLinkType.promocao:
+          if (info.id != null) {
+            _log.info(
+              'Navegação para promoção ${info.id} (implementar se necessário)',
+            );
+          }
+          break;
+
+        default:
+          _log.info(
+            'Deep link type não processado na HomeScreen: ${info.type}',
+          );
+          break;
+      }
+    });
+  }
+
+  void _navegarParaReservaViaLink(String reservaId) async {
+    _log.info('Navegando para reserva via link: $reservaId');
+
+    // Navegar diretamente para a tela de cortesia link
+    if (mounted) {
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (context) => CortesiaLinkScreen(cortesiaId: reservaId),
+        ),
+      );
+    }
+  }
+
+  @override
+  void dispose() {
+    _deepLinkSubscription?.cancel();
+    super.dispose();
   }
 
   Future<void> _verificarAcesso() async {

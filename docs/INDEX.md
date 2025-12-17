@@ -12,6 +12,8 @@
 
 ### 📱 Configuração Específica
 - [**Package Names Setup**](./PACKAGE_NAMES_SETUP.md) - Configuração de bundle IDs e package names
+- [**Deep Links**](./DEEP_LINKS_IMPLEMENTACAO.md) - Implementação e uso de deep linking
+- [**Firebase Multi-Cliente**](./FIREBASE_MULTICLIENTE.md) - Configuração do Firebase
 - [**Resumo da Implementação**](./IMPLEMENTACAO_RESUMO.md) - O que foi implementado e como usar
 
 ### 📁 Assets e Recursos
@@ -45,6 +47,8 @@
 | Adicionar novo cliente | [SCRIPTS_CLIENTES.md](./SCRIPTS_CLIENTES.md) |
 | Entender a arquitetura | [MULTI_CLIENT_SETUP.md](./MULTI_CLIENT_SETUP.md) |
 | Configurar package names | [PACKAGE_NAMES_SETUP.md](./PACKAGE_NAMES_SETUP.md) |
+| Implementar deep links | [DEEP_LINKS_IMPLEMENTACAO.md](./DEEP_LINKS_IMPLEMENTACAO.md) |
+| Configurar Firebase | [FIREBASE_MULTICLIENTE.md](./FIREBASE_MULTICLIENTE.md) |
 | Organizar assets | [ASSETS_README.md](./ASSETS_README.md) |
 | Visão geral do projeto | [IMPLEMENTACAO_RESUMO.md](./IMPLEMENTACAO_RESUMO.md) |
 

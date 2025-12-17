@@ -23,10 +23,38 @@ class _CortesiaLinkScreenState extends State<CortesiaLinkScreen> {
   final List<ConvidadoFormData> _convidados = [];
   final _formKey = GlobalKey<FormState>();
 
+  // Controle de horário para cortesias promocionais
+  bool _cortesiaPromocionalControleHorario = false;
+  String? _cortesiaPromocionalHorarioLimite;
+
   @override
   void initState() {
     super.initState();
     _carregarCortesia();
+    _carregarTermosDeUso();
+  }
+
+  Future<void> _carregarTermosDeUso() async {
+    try {
+      final apiService = await ApiService.getInstance();
+      final clientService = ClientService.instance;
+      final resultado = await apiService.getTermosDeUso(
+        clientService.currentConfig.clientType,
+      );
+
+      if (resultado.success && resultado.data != null) {
+        setState(() {
+          _cortesiaPromocionalControleHorario =
+              resultado.data!['cortesia_promocional_controle_horario']
+                  as bool? ??
+              false;
+          _cortesiaPromocionalHorarioLimite =
+              resultado.data!['cortesia_promocional_horario_limite'] as String?;
+        });
+      }
+    } catch (e) {
+      // Erro ao carregar termos
+    }
   }
 
   Future<void> _carregarCortesia() async {
@@ -96,10 +124,12 @@ class _CortesiaLinkScreenState extends State<CortesiaLinkScreen> {
         });
       }
     } catch (e) {
-      setState(() {
-        _errorMessage = 'Erro inesperado: $e';
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _errorMessage = 'Erro inesperado: $e';
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -267,6 +297,40 @@ class _CortesiaLinkScreenState extends State<CortesiaLinkScreen> {
                           height: 1.5,
                         ),
                       ),
+                      // Exibir informação de horário limite se for cortesia promocional
+                      if (_cortesia?.tipoCortesia == 'PROMOCIONAL' &&
+                          _cortesiaPromocionalControleHorario &&
+                          _cortesiaPromocionalHorarioLimite != null) ...[
+                        const SizedBox(height: 16),
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.orange.shade50,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: Colors.orange.shade300),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.access_time,
+                                color: Colors.orange.shade700,
+                                size: 20,
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  'Atenção: Esta cortesia deve ser retirada até às $_cortesiaPromocionalHorarioLimite.',
+                                  style: TextStyle(
+                                    color: Colors.orange.shade900,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ),
@@ -690,7 +754,15 @@ class _CortesiaLinkScreenState extends State<CortesiaLinkScreen> {
         setState(() {
           convidado.nomeController.text = usuario.nome;
           convidado.telefoneController.text = usuario.telefone;
-          convidado.dataNascimentoController.text = usuario.dataNascimento;
+          // Data existir e for isodate, pegar só o começo
+          if (usuario.dataNascimento.length >= 10) {
+            final dataIso = usuario.dataNascimento.substring(0, 10);
+            final parts = dataIso.split('-');
+            if (parts.length == 3) {
+              convidado.dataNascimentoController.text =
+                  '${parts[2]}/${parts[1]}/${parts[0]}';
+            }
+          }
         });
 
         if (mounted) {
@@ -1097,10 +1169,47 @@ class _DataInputFormatter extends TextInputFormatter {
 // Tela de Sucesso com QR Codes
 // ============================================================================
 
-class CortesiaSucessoScreen extends StatelessWidget {
+class CortesiaSucessoScreen extends StatefulWidget {
   final Map<String, dynamic> cortesiaData;
 
   const CortesiaSucessoScreen({super.key, required this.cortesiaData});
+
+  @override
+  State<CortesiaSucessoScreen> createState() => _CortesiaSucessoScreenState();
+}
+
+class _CortesiaSucessoScreenState extends State<CortesiaSucessoScreen> {
+  bool _cortesiaPromocionalControleHorario = false;
+  String? _cortesiaPromocionalHorarioLimite;
+
+  @override
+  void initState() {
+    super.initState();
+    _carregarTermosDeUso();
+  }
+
+  Future<void> _carregarTermosDeUso() async {
+    try {
+      final apiService = await ApiService.getInstance();
+      final clientService = ClientService.instance;
+      final resultado = await apiService.getTermosDeUso(
+        clientService.currentConfig.clientType,
+      );
+
+      if (resultado.success && resultado.data != null) {
+        setState(() {
+          _cortesiaPromocionalControleHorario =
+              resultado.data!['cortesia_promocional_controle_horario']
+                  as bool? ??
+              false;
+          _cortesiaPromocionalHorarioLimite =
+              resultado.data!['cortesia_promocional_horario_limite'] as String?;
+        });
+      }
+    } catch (e) {
+      // Erro ao carregar termos
+    }
+  }
 
   String _getStatusText(String status) {
     switch (status.toUpperCase()) {
@@ -1132,11 +1241,11 @@ class CortesiaSucessoScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final status = cortesiaData['status'] as String? ?? 'PENDENTE';
-    final convidados = cortesiaData['convidados'] as List? ?? [];
-    final data = cortesiaData['data'] as String?;
-    final titulo = cortesiaData['titulo'] as Map<String, dynamic>?;
-    final tipoCortesia = cortesiaData['tipo_cortesia'] as String?;
+    final status = widget.cortesiaData['status'] as String? ?? 'PENDENTE';
+    final convidados = widget.cortesiaData['convidados'] as List? ?? [];
+    final data = widget.cortesiaData['data'] as String?;
+    final titulo = widget.cortesiaData['titulo'] as Map<String, dynamic>?;
+    final tipoCortesia = widget.cortesiaData['tipo_cortesia'] as String?;
 
     return Scaffold(
       appBar: AppBar(
@@ -1274,6 +1383,55 @@ class CortesiaSucessoScreen extends StatelessWidget {
                 ],
               ),
             ),
+
+            // Informação de horário limite (se aplicável)
+            if (tipoCortesia == 'PROMOCIONAL' &&
+                _cortesiaPromocionalControleHorario &&
+                _cortesiaPromocionalHorarioLimite != null) ...[
+              Container(
+                margin: const EdgeInsets.symmetric(horizontal: 16),
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.orange.shade50,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.orange.shade300),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.access_time,
+                      color: Colors.orange.shade700,
+                      size: 24,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Horário Limite',
+                            style: TextStyle(
+                              color: Colors.orange.shade900,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Esta cortesia deve ser retirada até às $_cortesiaPromocionalHorarioLimite.',
+                            style: TextStyle(
+                              color: Colors.orange.shade800,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+            ],
 
             // Lista de convidados com QR Codes
             Padding(

@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import '../services/app_config_service.dart';
 import '../services/client_service.dart';
+import '../services/deep_link_service.dart';
+import '../services/logging_service.dart';
 import '../widgets/main_navigation.dart';
+import 'cortesia_link_screen.dart';
 
 class AppConfigLoadingScreen extends StatefulWidget {
   const AppConfigLoadingScreen({super.key});
@@ -13,6 +16,8 @@ class AppConfigLoadingScreen extends StatefulWidget {
 class _AppConfigLoadingScreenState extends State<AppConfigLoadingScreen> {
   final AppConfigService _appConfigService = AppConfigService.instance;
   final ClientService _clientService = ClientService.instance;
+  final DeepLinkService _deepLinkService = DeepLinkService.instance;
+  final LoggingService _log = LoggingService.instance;
 
   bool _isLoading = true;
   String? _errorMessage;
@@ -35,14 +40,11 @@ class _AppConfigLoadingScreenState extends State<AppConfigLoadingScreen> {
       );
 
       if (response.success) {
-        // Configurações carregadas com sucesso, navegar para a tela principal
-        if (mounted) {
-          Navigator.of(context).pushReplacement(
-            MaterialPageRoute(
-              builder: (context) => const MainNavigationScreen(),
-            ),
-          );
-        }
+        // Configurações carregadas com sucesso
+        _log.success('App config loaded successfully');
+
+        // Verificar se há deep link pendente
+        await _processarDeepLinkPendente();
       } else {
         // Erro ao carregar configurações
         setState(() {
@@ -55,6 +57,59 @@ class _AppConfigLoadingScreenState extends State<AppConfigLoadingScreen> {
         _isLoading = false;
         _errorMessage = 'Erro inesperado: $e';
       });
+    }
+  }
+
+  Future<void> _processarDeepLinkPendente() async {
+    if (!mounted) return;
+
+    final pendingLink = _deepLinkService.pendingDeepLink;
+
+    if (pendingLink != null) {
+      _log.info('🔗 Deep link pendente detectado: $pendingLink');
+      final info = _deepLinkService.parseDeepLink(pendingLink);
+
+      if (info != null) {
+        _log.success('Deep link parseado: ${info.toString()}');
+
+        // Limpar o link pendente antes de navegar
+        _deepLinkService.clearPendingDeepLink();
+
+        // Processar baseado no tipo
+        switch (info.type) {
+          case DeepLinkType.reservaViaLink:
+            if (info.id != null) {
+              _log.info('Navegando para CortesiaLinkScreen com ID: ${info.id}');
+
+              // Navegar direto para a tela de cortesia
+              Navigator.of(context).pushReplacement(
+                MaterialPageRoute(
+                  builder: (context) =>
+                      CortesiaLinkScreen(cortesiaId: info.id!),
+                ),
+              );
+              return; // Não navega para MainNavigation
+            }
+            break;
+
+          default:
+            // Para outros tipos, navega normalmente para MainNavigation
+            // O MainNavigationScreen vai processar
+            _log.info(
+              'Tipo de deep link será processado pelo MainNavigation: ${info.type}',
+            );
+            break;
+        }
+      } else {
+        _log.warning('Falha ao parsear deep link pendente');
+      }
+    }
+
+    // Navegar para tela principal (se não navegou para outra tela)
+    if (mounted) {
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (context) => const MainNavigationScreen()),
+      );
     }
   }
 

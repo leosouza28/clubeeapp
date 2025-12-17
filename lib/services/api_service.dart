@@ -1,11 +1,12 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+
 import 'package:app_clubee/services/logging_service.dart';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
-import 'package:logger/logger.dart';
+
 import '../config/client_type.dart';
 import '../models/login_model.dart';
 import '../services/client_service.dart';
@@ -52,7 +53,7 @@ class ApiService {
     final config = _clientConfigs[clientType]!;
     final String apiUrl;
     if (kDebugMode) {
-      apiUrl = 'http://192.168.100.203:${config['port']}';
+      apiUrl = 'http://192.168.0.104:${config['port']}';
     } else {
       apiUrl = config['apiUrl'];
     }
@@ -502,6 +503,35 @@ class ApiService {
         final errorData = _parseErrorResponse(response);
         return ApiResponse.error(
           errorData['message'] ?? 'Erro ao buscar cortesias disponíveis',
+          response.statusCode,
+        );
+      }
+    } on SocketException {
+      return ApiResponse.error('Erro de conexão', 0);
+    } catch (e) {
+      return ApiResponse.error('Erro inesperado: $e', 0);
+    }
+  }
+
+  // Busca termos de uso de cortesias
+  Future<ApiResponse<Map<String, dynamic>>> getTermosDeUso(
+    ClientType clientType,
+  ) async {
+    try {
+      final baseUrl = _getBaseUrl(clientType);
+      final url = Uri.parse('$baseUrl/v-public/cortesias/termos-de-uso');
+
+      final headers = await _getDefaultHeaders(clientType, includeAuth: false);
+
+      final response = await http.get(url, headers: headers);
+
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> responseData = jsonDecode(response.body);
+        return ApiResponse.success(responseData);
+      } else {
+        final errorData = _parseErrorResponse(response);
+        return ApiResponse.error(
+          errorData['message'] ?? 'Erro ao buscar termos de uso',
           response.statusCode,
         );
       }

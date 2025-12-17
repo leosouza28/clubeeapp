@@ -51,8 +51,8 @@ class ClientService {
 
     // Inicializar Deep Links para o novo cliente
     try {
-      DeepLinkService.instance.initializeForClient(clientType);
-      _log.success('Deep links initialized for ${clientType.displayName}');
+      // DeepLinkService.instance.initializeForClient(clientType);
+      // _log.success('Deep links initialized for ${clientType.displayName}');
     } catch (e) {
       _log.warning(
         'Failed to initialize deep links for ${clientType.displayName}: $e',

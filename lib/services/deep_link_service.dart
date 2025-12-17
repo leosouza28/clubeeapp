@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'package:flutter/services.dart';
+import 'package:app_links/app_links.dart';
 import '../config/client_config.dart';
 import '../config/client_type.dart';
 import 'client_service.dart';
@@ -12,6 +12,8 @@ class DeepLinkService {
 
   final _log = LoggingService.instance;
   String? _pendingDeepLink;
+  late AppLinks _appLinks;
+  StreamSubscription<Uri>? _linkSubscription;
 
   // Stream para notificar sobre novos deep links
   final _deepLinkController = StreamController<String>.broadcast();
@@ -19,6 +21,17 @@ class DeepLinkService {
 
   DeepLinkService._internal() {
     _log.debug('DeepLinkService instance created');
+  }
+
+  /// Inicializa o serviço de deep links
+  Future<void> initialize() async {
+    _log.info('Initializing DeepLinkService with app_links package');
+    _appLinks = AppLinks();
+
+    // Capturar link inicial (quando app é aberto via deep link)
+    await _getInitialLink();
+
+    // Escutar novos links (quando app está em background/foreground)
     _initializeDeepLinkListener();
   }
 
@@ -33,29 +46,28 @@ class DeepLinkService {
 
   /// Inicializa o listener de deep links
   void _initializeDeepLinkListener() {
-    // Canal para capturar deep links
-    const platform = MethodChannel('app.clubee/deeplink');
-
-    platform.setMethodCallHandler((call) async {
-      if (call.method == 'routeUpdated') {
-        final String link = call.arguments;
-        _handleIncomingDeepLink(link);
-      }
-    });
-
-    // Capturar link inicial (quando app é aberto via deep link)
-    _getInitialLink();
+    _linkSubscription = _appLinks.uriLinkStream.listen(
+      (Uri uri) {
+        _log.info('New deep link received: $uri');
+        _handleIncomingDeepLink(uri.toString());
+      },
+      onError: (Object error) {
+        _log.error('Error listening to deep links: $error');
+      },
+    );
   }
 
   /// Captura o link inicial se o app foi aberto via deep link
   Future<void> _getInitialLink() async {
     try {
-      const platform = MethodChannel('app.clubee/deeplink');
-      final String? initialLink = await platform.invokeMethod('getInitialLink');
+      final Uri? initialUri = await _appLinks.getInitialLink();
 
-      if (initialLink != null && initialLink.isNotEmpty) {
+      if (initialUri != null) {
+        final String initialLink = initialUri.toString();
         _log.info('Initial deep link detected: $initialLink');
         _handleIncomingDeepLink(initialLink);
+      } else {
+        _log.debug('No initial deep link found');
       }
     } catch (e) {
       _log.warning('Error getting initial link: $e');
@@ -65,6 +77,7 @@ class DeepLinkService {
   /// Processa deep link recebido
   void _handleIncomingDeepLink(String link) {
     _log.info('Processing deep link: $link');
+    _log.debug('Previous pending link: $_pendingDeepLink');
 
     final config = ClientService.instance.currentConfig;
 
@@ -259,6 +272,7 @@ class DeepLinkService {
   }
 
   void dispose() {
+    _linkSubscription?.cancel();
     _deepLinkController.close();
   }
 }

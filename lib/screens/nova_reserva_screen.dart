@@ -42,16 +42,64 @@ class _NovaReservaScreenState extends State<NovaReservaScreen> {
   bool _enviandoReserva = false;
   String? _errReserva;
 
+  // Termos de uso
+  String? _termoUsoContrato;
+  String? _termoUsoPromocional;
+  bool _carregandoTermos = false;
+
+  // Controle de horário para cortesias promocionais
+  bool _cortesiaPromocionalControleHorario = false;
+  String? _cortesiaPromocionalHorarioLimite;
+
   @override
   void initState() {
     super.initState();
     _calcularDiasDoMes();
     _carregarCalendario();
+    _carregarTermosDeUso();
   }
 
   @override
   void dispose() {
     super.dispose();
+  }
+
+  Future<void> _carregarTermosDeUso() async {
+    setState(() {
+      _carregandoTermos = true;
+    });
+
+    try {
+      final client = ClientService.instance;
+      final apiService = await ApiService.getInstance();
+      final resultado = await apiService.getTermosDeUso(
+        client.currentClientType,
+      );
+
+      if (resultado.success && resultado.data != null) {
+        setState(() {
+          _termoUsoContrato =
+              resultado.data!['termos_uso_cortesias_contrato'] as String?;
+          _termoUsoPromocional =
+              resultado.data!['termos_uso_cortesias_promocional'] as String?;
+          _cortesiaPromocionalControleHorario =
+              resultado.data!['cortesia_promocional_controle_horario']
+                  as bool? ??
+              false;
+          _cortesiaPromocionalHorarioLimite =
+              resultado.data!['cortesia_promocional_horario_limite'] as String?;
+          _carregandoTermos = false;
+        });
+      } else {
+        setState(() {
+          _carregandoTermos = false;
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _carregandoTermos = false;
+      });
+    }
   }
 
   Future<void> _carregarCalendario() async {
@@ -261,10 +309,22 @@ class _NovaReservaScreenState extends State<NovaReservaScreen> {
         }
 
         if (mounted) {
+          // Construir mensagem de sucesso
+          String mensagemSucesso = 'Reserva criada com sucesso!';
+
+          // Adicionar informação de horário limite se aplicável
+          if (_cortesiaSelecionada?.tipo == 'PROMOCIONAL' &&
+              _cortesiaPromocionalControleHorario &&
+              _cortesiaPromocionalHorarioLimite != null) {
+            mensagemSucesso +=
+                ' Lembre-se: retirar até às $_cortesiaPromocionalHorarioLimite.';
+          }
+
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Reserva criada com sucesso!'),
+            SnackBar(
+              content: Text(mensagemSucesso),
               backgroundColor: Colors.green,
+              duration: const Duration(seconds: 5),
             ),
           );
 
@@ -924,6 +984,40 @@ class _NovaReservaScreenState extends State<NovaReservaScreen> {
                   'Será gerado um link que você irá compartilhar com o seu convidado. Lembrando que para menores de 18 anos, será necessário informar os dados de um adulto responsável no link.',
                   style: TextStyle(color: Colors.blue.shade800, fontSize: 14),
                 ),
+                // Exibir informação de horário limite se for cortesia promocional
+                if (_cortesiaSelecionada?.tipo == 'PROMOCIONAL' &&
+                    _cortesiaPromocionalControleHorario &&
+                    _cortesiaPromocionalHorarioLimite != null) ...[
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.orange.shade50,
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: Colors.orange.shade300),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.access_time,
+                          color: Colors.orange.shade700,
+                          size: 20,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Atenção: Esta cortesia deve ser retirada até às $_cortesiaPromocionalHorarioLimite.',
+                            style: TextStyle(
+                              color: Colors.orange.shade900,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
@@ -964,9 +1058,7 @@ class _NovaReservaScreenState extends State<NovaReservaScreen> {
           ),
 
           CheckboxListTile(
-            title: const Text(
-              'Tenho consciência que para fazer uso das minhas cortesias devo estar regular com o meu plano',
-            ),
+            title: Text(_obterTextoRegularidade()),
             value: _aceiteiRegularidade,
             onChanged: (value) =>
                 setState(() => _aceiteiRegularidade = value ?? false),
@@ -1000,6 +1092,32 @@ class _NovaReservaScreenState extends State<NovaReservaScreen> {
         ],
       ),
     );
+  }
+
+  String _obterTextoRegularidade() {
+    // Se ainda está carregando os termos, mostra mensagem padrão
+    if (_carregandoTermos) {
+      return 'Carregando termos...';
+    }
+
+    // Se não tem cortesia selecionada, mostra mensagem padrão
+    if (_cortesiaSelecionada == null) {
+      return 'Selecione uma cortesia para ver os termos';
+    }
+
+    // Verifica o tipo de cortesia e retorna o texto apropriado
+    final tipoPromocional =
+        _cortesiaSelecionada!.tipo == 'PROMOCIONAL' ||
+        _cortesiaSelecionada!.tipo == 'PROGRAMACAO';
+
+    if (tipoPromocional && _termoUsoPromocional != null) {
+      return _termoUsoPromocional!;
+    } else if (!tipoPromocional && _termoUsoContrato != null) {
+      return _termoUsoContrato!;
+    }
+
+    // Fallback caso os termos não tenham sido carregados
+    return 'Tenho consciência que para fazer uso das minhas cortesias devo estar regular com o meu plano';
   }
 
   bool _podeAvancar() {

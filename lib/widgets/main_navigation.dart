@@ -1,9 +1,12 @@
+import 'dart:async';
 import 'package:app_clubee/screens/discover_screen.dart';
 import 'package:flutter/material.dart';
 
 import '../screens/account_screen.dart';
 import '../screens/home_screen.dart';
 import '../screens/news_screen.dart';
+import '../services/deep_link_service.dart';
+import '../services/logging_service.dart';
 
 class MainNavigationScreen extends StatefulWidget {
   const MainNavigationScreen({super.key});
@@ -15,8 +18,68 @@ class MainNavigationScreen extends StatefulWidget {
 class _MainNavigationScreenState extends State<MainNavigationScreen> {
   int _currentIndex = 0;
   final PageController _pageController = PageController();
+  final DeepLinkService _deepLinkService = DeepLinkService.instance;
+  final LoggingService _log = LoggingService.instance;
+  StreamSubscription<String>? _deepLinkSubscription;
 
   static const int accountIndex = 3;
+
+  @override
+  void initState() {
+    super.initState();
+    _initializeDeepLinks();
+  }
+
+  void _initializeDeepLinks() {
+    // Verificar deep link pendente
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkPendingDeepLink();
+    });
+
+    // Escutar novos deep links
+    _deepLinkSubscription = _deepLinkService.onDeepLink.listen((link) {
+      _log.info('🔗 New deep link received in MainNavigation: $link');
+      _processDeepLink(link);
+    });
+  }
+
+  void _checkPendingDeepLink() {
+    final pendingLink = _deepLinkService.pendingDeepLink;
+    if (pendingLink != null) {
+      _log.info('🔗 Processing pending deep link: $pendingLink');
+      _processDeepLink(pendingLink);
+      _deepLinkService.clearPendingDeepLink();
+    }
+  }
+
+  void _processDeepLink(String link) {
+    final info = _deepLinkService.parseDeepLink(link);
+
+    if (info == null) {
+      _log.warning('Failed to parse deep link: $link');
+      return;
+    }
+
+    _log.success('Deep link parsed: ${info.toString()}');
+
+    // Aguardar frame para garantir que a tela está montada
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+
+      switch (info.type) {
+        case DeepLinkType.profile:
+          _onTabTapped(accountIndex);
+          break;
+        case DeepLinkType.home:
+          _onTabTapped(0);
+          break;
+        default:
+          // Outros tipos serão processados pela HomeScreen
+          _onTabTapped(0);
+          break;
+      }
+    });
+  }
 
   void _onTabTapped(int index) {
     setState(() {
@@ -38,6 +101,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
 
   @override
   void dispose() {
+    _deepLinkSubscription?.cancel();
     _pageController.dispose();
     super.dispose();
   }

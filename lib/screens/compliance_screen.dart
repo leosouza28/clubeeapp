@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:lottie/lottie.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../services/app_config_service.dart';
 
 class ComplianceScreen extends StatefulWidget {
@@ -25,7 +26,7 @@ class _ComplianceScreenState extends State<ComplianceScreen> {
     final appConfigService = AppConfigService.instance;
     final url = appConfigService.appConfig?.urlCompliance;
 
-    if (url == null || url.isEmpty || !url.contains('https://')) {
+    if (url == null || url.isEmpty) {
       setState(() {
         _errorMessage = 'URL de Compliance não configurada';
         _isLoading = false;
@@ -38,6 +39,20 @@ class _ComplianceScreenState extends State<ComplianceScreen> {
       ..setBackgroundColor(const Color(0x00000000))
       ..setNavigationDelegate(
         NavigationDelegate(
+          onNavigationRequest: (NavigationRequest request) async {
+            // Verifica se é um link para PDF
+            if (request.url.toLowerCase().endsWith('.pdf') ||
+                request.url.toLowerCase().contains('.pdf?') ||
+                request.url.toLowerCase().contains('/pdf/')) {
+              // Abre o PDF em um navegador externo
+              final uri = Uri.parse(request.url);
+              if (await canLaunchUrl(uri)) {
+                await launchUrl(uri, mode: LaunchMode.externalApplication);
+              }
+              return NavigationDecision.prevent;
+            }
+            return NavigationDecision.navigate;
+          },
           onPageStarted: (String url) {
             setState(() {
               _isLoading = true;

@@ -34,35 +34,79 @@ class CortesiaModel {
   });
 
   factory CortesiaModel.fromJson(Map<String, dynamic> json) {
-    return CortesiaModel(
-      id: json['_id'] as String,
-      hash: json['hash'] as String,
-      createdAt: DateTime.parse(json['created_at'] as String),
-      data: DateTime.parse(json['data'] as String),
-      status: json['status'] as String,
-      tipoCortesia: json['tipo_cortesia'] as String,
-      tipoUsuarioRetirada: json['tipo_usuario_retirada'] as String,
-      totalCortesias: json['total_cortesias'] as int,
-      totalCortesiasRetiradas: json['total_cortesias_retiradas'] as int,
-      siteUrl: json['site_url'] as String?,
-      clube: ClubeModel.fromJson(json['clube'] as Map<String, dynamic>),
-      titulo: TituloModel.fromJson(json['titulo'] as Map<String, dynamic>),
-      usuario: UsuarioModel.fromJson(json['usuario'] as Map<String, dynamic>),
-      convidados:
-          (json['convidados'] as List?)
-              ?.map(
-                (item) => ConvidadoModel.fromJson(item as Map<String, dynamic>),
-              )
-              .toList() ??
-          [],
-      retiradas:
-          (json['retiradas'] as List?)
-              ?.map(
-                (item) => RetiradaModel.fromJson(item as Map<String, dynamic>),
-              )
-              .toList() ??
-          [],
-    );
+    try {
+      // print('    🔸 Parsing campo: _id');
+      final id = json['_id'] as String;
+      
+      // print('    🔸 Parsing campo: hash');
+      final hash = json['hash'] as String;
+      
+      // print('    🔸 Parsing campo: created_at');
+      final createdAt = DateTime.parse(json['created_at'] as String);
+      
+      // print('    🔸 Parsing campo: data');
+      final data = DateTime.parse(json['data'] as String);
+      
+      // print('    🔸 Parsing campo: status');
+      final status = json['status'] as String;
+      
+      // print('    🔸 Parsing campo: tipo_cortesia');
+      final tipoCortesia = json['tipo_cortesia'] as String;
+      
+      // print('    🔸 Parsing campo: tipo_usuario_retirada');
+      final tipoUsuarioRetirada = json['tipo_usuario_retirada'] as String;
+      
+      // print('    🔸 Parsing campo: total_cortesias');
+      final totalCortesias = json['total_cortesias'] as int;
+      
+      // print('    🔸 Parsing campo: total_cortesias_retiradas');
+      final totalCortesiasRetiradas = json['total_cortesias_retiradas'] as int;
+      
+      // print('    🔸 Parsing campo: site_url');
+      final siteUrl = json['site_url'] as String?;
+      
+      // print('    🔸 Parsing objeto: clube');
+      final clube = ClubeModel.fromJson(json['clube'] as Map<String, dynamic>);
+      
+      // print('    🔸 Parsing objeto: titulo');
+      final titulo = TituloModel.fromJson(json['titulo'] as Map<String, dynamic>);
+      
+      // print('    🔸 Parsing objeto: usuario');
+      final usuario = UsuarioModel.fromJson(json['usuario'] as Map<String, dynamic>);
+      
+      // print('    🔸 Parsing lista: convidados');
+      final convidados = (json['convidados'] as List?)
+          ?.map((item) => ConvidadoModel.fromJson(item as Map<String, dynamic>))
+          .toList() ?? [];
+      
+      // print('    🔸 Parsing lista: retiradas');
+      final retiradas = (json['retiradas'] as List?)
+          ?.map((item) => RetiradaModel.fromJson(item as Map<String, dynamic>))
+          .toList() ?? [];
+      
+      // print('    🔸 Criando instância CortesiaModel');
+      return CortesiaModel(
+        id: id,
+        hash: hash,
+        createdAt: createdAt,
+        data: data,
+        status: status,
+        tipoCortesia: tipoCortesia,
+        tipoUsuarioRetirada: tipoUsuarioRetirada,
+        totalCortesias: totalCortesias,
+        totalCortesiasRetiradas: totalCortesiasRetiradas,
+        siteUrl: siteUrl,
+        clube: clube,
+        titulo: titulo,
+        usuario: usuario,
+        convidados: convidados,
+        retiradas: retiradas,
+      );
+    } catch (e, stackTrace) {
+      print('    ❌ ERRO no CortesiaModel.fromJson: $e');
+      print('    Stack: ${stackTrace.toString().split('\n').take(2).join('\n')}');
+      rethrow;
+    }
   }
 
   String get statusDisplay {
@@ -132,14 +176,32 @@ class TituloModel {
   });
 
   factory TituloModel.fromJson(Map<String, dynamic> json) {
-    return TituloModel(
-      id: json['_id'] as String,
-      tituloSerieHash: json['titulo_serie_hash'] as String,
-      codSerie: json['cod_serie'] as String,
-      nomeSerie: json['nome_serie'] as String,
-      titulo: json['titulo'] as String,
-      usuario: UsuarioModel.fromJson(json['usuario'] as Map<String, dynamic>),
-    );
+    try {
+      // print('      🔹 TituloModel: _id');
+      final id = json['_id'] as String;
+      // print('      🔹 TituloModel: titulo_serie_hash');
+      final tituloSerieHash = json['titulo_serie_hash'] as String;
+      // print('      🔹 TituloModel: cod_serie');
+      final codSerie = json['cod_serie'] as String;
+      // print('      🔹 TituloModel: nome_serie');
+      final nomeSerie = json['nome_serie'] as String;
+      // print('      🔹 TituloModel: titulo');
+      final titulo = json['titulo'] as String;
+      // print('      🔹 TituloModel: usuario (nested)');
+      final usuario = UsuarioModel.fromJson(json['usuario'] as Map<String, dynamic>);
+      
+      return TituloModel(
+        id: id,
+        tituloSerieHash: tituloSerieHash,
+        codSerie: codSerie,
+        nomeSerie: nomeSerie,
+        titulo: titulo,
+        usuario: usuario,
+      );
+    } catch (e) {
+      print('      ❌ ERRO no TituloModel.fromJson: $e');
+      rethrow;
+    }
   }
 }
 
@@ -159,13 +221,37 @@ class UsuarioModel {
   });
 
   factory UsuarioModel.fromJson(Map<String, dynamic> json) {
-    return UsuarioModel(
-      id: json['_id'] as String,
-      cpfCnpj: json['cpf_cnpj'] as String,
-      nome: json['nome'] as String,
-      email: json['email'] as String,
-      numeroTelefoneAcesso: json['numero_telefone_acesso'] as String,
-    );
+    try {
+      print('        🔸 UsuarioModel JSON completo: $json');
+      print('        🔸 UsuarioModel: _id = ${json['_id']}');
+      final id = json['_id'] as String;
+      print('        🔸 UsuarioModel: cpf_cnpj = ${json['cpf_cnpj']}');
+      final cpfCnpj = json['cpf_cnpj'] as String;
+      print('        🔸 UsuarioModel: nome = ${json['nome']}');
+      final nome = json['nome'] as String;
+      print('        🔸 UsuarioModel: email = ${json['email']}');
+      final email = json['email'] as String;
+      print('        🔸 UsuarioModel: numero_telefone_acesso = ${json['numero_telefone_acesso']} (tipo: ${json['numero_telefone_acesso'].runtimeType})');
+      
+      // Se for null, vamos usar string vazia temporariamente
+      final numeroTelefoneAcesso = json['numero_telefone_acesso'] as String?;
+      
+      if (numeroTelefoneAcesso == null) {
+        print('        ⚠️  ATENÇÃO: numero_telefone_acesso está NULL!');
+        throw Exception('numero_telefone_acesso não pode ser null');
+      }
+      
+      return UsuarioModel(
+        id: id,
+        cpfCnpj: cpfCnpj,
+        nome: nome,
+        email: email,
+        numeroTelefoneAcesso: numeroTelefoneAcesso,
+      );
+    } catch (e) {
+      print('        ❌ ERRO no UsuarioModel.fromJson: $e');
+      rethrow;
+    }
   }
 }
 
@@ -272,11 +358,25 @@ class UsuarioSistemaModel {
   });
 
   factory UsuarioSistemaModel.fromJson(Map<String, dynamic> json) {
-    return UsuarioSistemaModel(
-      id: json['_id'] as String,
-      cpfCnpj: json['cpf_cnpj'] as String,
-      nome: json['nome'] as String,
-      email: json['email'] as String,
-    );
+    try {
+      print('          🔹 UsuarioSistemaModel: _id');
+      final id = json['_id'] as String;
+      print('          🔹 UsuarioSistemaModel: cpf_cnpj (valor: ${json['cpf_cnpj']}, tipo: ${json['cpf_cnpj'].runtimeType})');
+      final cpfCnpj = json['cpf_cnpj'] as String;
+      print('          🔹 UsuarioSistemaModel: nome');
+      final nome = json['nome'] as String;
+      print('          🔹 UsuarioSistemaModel: email (valor: ${json['email']}, tipo: ${json['email'].runtimeType})');
+      final email = json['email'] as String;
+      
+      return UsuarioSistemaModel(
+        id: id,
+        cpfCnpj: cpfCnpj,
+        nome: nome,
+        email: email,
+      );
+    } catch (e) {
+      print('          ❌ ERRO no UsuarioSistemaModel.fromJson: $e');
+      rethrow;
+    }
   }
 }

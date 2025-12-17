@@ -67,9 +67,52 @@ class _ReservasScreenState extends State<ReservasScreen>
 
       if (resultado.success && resultado.data != null) {
         try {
-          final cortesias = resultado.data!
-              .map((item) => CortesiaModel.fromJson(item))
-              .toList();
+          print('📦 TOTAL: ${resultado.data!.length} cortesias');
+          
+          final cortesias = <CortesiaModel>[];
+          
+          for (var i = 0; i < resultado.data!.length; i++) {
+            try {
+              final item = resultado.data![i];
+              print('\n🔍 Cortesia $i - ID: ${item['_id']}');
+              
+              // Verificar campos críticos
+              final usuario = item['usuario'];
+              if (usuario != null) {
+                print('  👤 Usuario.numero_telefone_acesso: ${usuario['numero_telefone_acesso']} (${usuario['numero_telefone_acesso'].runtimeType})');
+              }
+              
+              final titulo = item['titulo'];
+              if (titulo != null && titulo['usuario'] != null) {
+                final usuarioTitulo = titulo['usuario'];
+                print('  📋 Titulo.Usuario.numero_telefone_acesso: ${usuarioTitulo['numero_telefone_acesso']} (${usuarioTitulo['numero_telefone_acesso'].runtimeType})');
+              }
+              
+              final retiradas = item['retiradas'];
+              if (retiradas != null && (retiradas as List).isNotEmpty) {
+                for (var j = 0; j < (retiradas as List).length; j++) {
+                  final ret = (retiradas as List)[j];
+                  if (ret['usuario_sistema'] != null) {
+                    final usuarioSist = ret['usuario_sistema'];
+                    print('  🔄 Retirada[$j].UsuarioSistema.email: ${usuarioSist['email']} (${usuarioSist['email'].runtimeType})');
+                    print('  🔄 Retirada[$j].UsuarioSistema.cpf_cnpj: ${usuarioSist['cpf_cnpj']} (${usuarioSist['cpf_cnpj'].runtimeType})');
+                  }
+                }
+              }
+              
+              print('  ⏳ Criando modelo...');
+              final cortesia = CortesiaModel.fromJson(item);
+              cortesias.add(cortesia);
+              print('  ✅ OK');
+              
+            } catch (e, stackTrace) {
+              print('\n❌ ERRO na cortesia $i:');
+              print('$e');
+              print('Stack: ${stackTrace.toString().split('\n').take(3).join('\n')}');
+              rethrow;
+            }
+          }
+
           // Ordenar por data de criação (mais recentes primeiro)
           cortesias.sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
