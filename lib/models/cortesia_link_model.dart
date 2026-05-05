@@ -12,6 +12,8 @@ class CortesiaLinkModel {
   final int versaoCortesia;
   final DateTime data;
   final DateTime createdAt;
+  final bool? controleHorario;
+  final String? horarioLimite;
 
   CortesiaLinkModel({
     required this.id,
@@ -27,6 +29,8 @@ class CortesiaLinkModel {
     required this.versaoCortesia,
     required this.data,
     required this.createdAt,
+    this.controleHorario,
+    this.horarioLimite,
   });
 
   factory CortesiaLinkModel.fromJson(Map<String, dynamic> json) {
@@ -46,6 +50,8 @@ class CortesiaLinkModel {
       createdAt: DateTime.parse(
         json['created_at'] ?? DateTime.now().toIso8601String(),
       ),
+      controleHorario: json['controle_horario'] as bool?,
+      horarioLimite: json['horario_limite'] as String?,
     );
   }
 

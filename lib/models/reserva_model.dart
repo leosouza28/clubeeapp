@@ -23,6 +23,20 @@ class CortesiaDisponivelModel {
   }
 }
 
+class CortesiaHorarioModel {
+  final bool controleHorario;
+  final String? horarioLimite;
+
+  CortesiaHorarioModel({required this.controleHorario, this.horarioLimite});
+
+  factory CortesiaHorarioModel.fromJson(Map<String, dynamic> json) {
+    return CortesiaHorarioModel(
+      controleHorario: json['controle_horario'] ?? false,
+      horarioLimite: json['horario_limite'] as String?,
+    );
+  }
+}
+
 class ReservaRequest {
   final bool concordo;
   final int quantidade;

@@ -47,9 +47,8 @@ class _NovaReservaScreenState extends State<NovaReservaScreen> {
   String? _termoUsoPromocional;
   bool _carregandoTermos = false;
 
-  // Controle de horário para cortesias promocionais
-  bool _cortesiaPromocionalControleHorario = false;
-  String? _cortesiaPromocionalHorarioLimite;
+  // Controle de horário para cortesias (vindo da API)
+  CortesiaHorarioModel? _cortesiaHorario;
 
   @override
   void initState() {
@@ -82,12 +81,6 @@ class _NovaReservaScreenState extends State<NovaReservaScreen> {
               resultado.data!['termos_uso_cortesias_contrato'] as String?;
           _termoUsoPromocional =
               resultado.data!['termos_uso_cortesias_promocional'] as String?;
-          _cortesiaPromocionalControleHorario =
-              resultado.data!['cortesia_promocional_controle_horario']
-                  as bool? ??
-              false;
-          _cortesiaPromocionalHorarioLimite =
-              resultado.data!['cortesia_promocional_horario_limite'] as String?;
           _carregandoTermos = false;
         });
       } else {
@@ -207,6 +200,35 @@ class _NovaReservaScreenState extends State<NovaReservaScreen> {
     setState(() {
       _dataSelecionada = data;
     });
+    _carregarControleHorario();
+  }
+
+  Future<void> _carregarControleHorario() async {
+    if (_dataSelecionada == null) return;
+
+    try {
+      final client = ClientService.instance;
+      final apiService = await ApiService.getInstance();
+      final dataFormatada =
+          '${_dataSelecionada!.year}-${_dataSelecionada!.month.toString().padLeft(2, '0')}-${_dataSelecionada!.day.toString().padLeft(2, '0')}';
+
+      final resultado = await apiService.getCortesiasDisponiveisHorario(
+        client.currentClientType,
+        widget.tituloId,
+        dataFormatada,
+      );
+
+      if (resultado.success && resultado.data != null) {
+        setState(() {
+          _cortesiaHorario = CortesiaHorarioModel.fromJson(resultado.data!);
+        });
+      }
+    } catch (e) {
+      // Silenciosamente falha - não é crítico
+      if (kDebugMode) {
+        print('Erro ao carregar controle de horário: $e');
+      }
+    }
   }
 
   Future<void> _carregarCortesias() async {
@@ -313,11 +335,11 @@ class _NovaReservaScreenState extends State<NovaReservaScreen> {
           String mensagemSucesso = 'Reserva criada com sucesso!';
 
           // Adicionar informação de horário limite se aplicável
-          if (_cortesiaSelecionada?.tipo == 'PROMOCIONAL' &&
-              _cortesiaPromocionalControleHorario &&
-              _cortesiaPromocionalHorarioLimite != null) {
+          if (_cortesiaHorario != null &&
+              _cortesiaHorario!.controleHorario &&
+              _cortesiaHorario!.horarioLimite != null) {
             mensagemSucesso +=
-                ' Lembre-se: retirar até às $_cortesiaPromocionalHorarioLimite.';
+                ' Lembre-se: retirar até às ${_cortesiaHorario!.horarioLimite}.';
           }
 
           ScaffoldMessenger.of(context).showSnackBar(
@@ -984,10 +1006,10 @@ class _NovaReservaScreenState extends State<NovaReservaScreen> {
                   'Será gerado um link que você irá compartilhar com o seu convidado. Lembrando que para menores de 18 anos, será necessário informar os dados de um adulto responsável no link.',
                   style: TextStyle(color: Colors.blue.shade800, fontSize: 14),
                 ),
-                // Exibir informação de horário limite se for cortesia promocional
-                if (_cortesiaSelecionada?.tipo == 'PROMOCIONAL' &&
-                    _cortesiaPromocionalControleHorario &&
-                    _cortesiaPromocionalHorarioLimite != null) ...[
+                // Exibir informação de horário limite se houver controle de horário
+                if (_cortesiaHorario != null &&
+                    _cortesiaHorario!.controleHorario &&
+                    _cortesiaHorario!.horarioLimite != null) ...[
                   const SizedBox(height: 12),
                   Container(
                     padding: const EdgeInsets.all(12),
@@ -1006,7 +1028,7 @@ class _NovaReservaScreenState extends State<NovaReservaScreen> {
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
-                            'Atenção: Esta cortesia deve ser retirada até às $_cortesiaPromocionalHorarioLimite.',
+                            'Atenção: Esta cortesia deve ser utilizada até: ${_cortesiaHorario!.horarioLimite}.',
                             style: TextStyle(
                               color: Colors.orange.shade900,
                               fontSize: 13,

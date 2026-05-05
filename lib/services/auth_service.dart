@@ -227,6 +227,84 @@ class AuthService {
     }
   }
 
+  // Busca cotas do resort do usuário autenticado
+  Future<CotasResortResult> getCotasResort(ClientType clientType) async {
+    _log.operation('Fetching resort quotas');
+
+    final response = await _apiService.getCotasResort(clientType);
+
+    if (response.success && response.data != null) {
+      _log.success(
+        'Resort quotas fetched successfully: ${response.data!.length} quotas found',
+      );
+      return CotasResortResult.success(response.data!);
+    } else if (response.success && response.data == null) {
+      _log.info('API responded successfully but with no resort quotas');
+      return CotasResortResult.success([]);
+    } else {
+      // Verificar se é erro de conexão baseado no statusCode ou mensagem
+      if (response.statusCode == 0 ||
+          (response.error != null && response.error!.contains('conexão'))) {
+        _log.error(
+          'Connection error detected - statusCode: ${response.statusCode}, error: ${response.error}',
+        );
+        return CotasResortResult.connectionError(
+          'Falha de conexão. Verifique sua internet e tente novamente.',
+        );
+      } else {
+        _log.warning('API responded with error: ${response.error}');
+        return CotasResortResult.error(
+          response.error ?? 'Erro desconhecido na API',
+        );
+      }
+    }
+  }
+
+  // Busca detalhes de uma cota do resort específica
+  Future<CotaResortDetailsResult> getCotaResortDetails(
+    ClientType clientType,
+    String cotaId, {
+    bool getParcelas = false,
+  }) async {
+    _log.operation(
+      'Fetching resort quota details for ID: $cotaId (parcelas: $getParcelas)',
+    );
+
+    final response = await _apiService.getCotaResortDetails(
+      clientType,
+      cotaId,
+      getParcelas: getParcelas,
+    );
+
+    if (response.success && response.data != null) {
+      _log.success(
+        'Resort quota details fetched successfully for ID: $cotaId',
+      );
+      return CotaResortDetailsResult.success(response.data!);
+    } else if (response.success && response.data == null) {
+      _log.warning(
+        'API responded successfully but quota not found for ID: $cotaId',
+      );
+      return CotaResortDetailsResult.error('Cota não encontrada');
+    } else {
+      // Verificar se é erro de conexão baseado no statusCode ou mensagem
+      if (response.statusCode == 0 ||
+          (response.error != null && response.error!.contains('conexão'))) {
+        _log.error(
+          'Connection error detected - statusCode: ${response.statusCode}, error: ${response.error}',
+        );
+        return CotaResortDetailsResult.connectionError(
+          'Falha de conexão. Verifique sua internet e tente novamente.',
+        );
+      } else {
+        _log.warning('API responded with error: ${response.error}');
+        return CotaResortDetailsResult.error(
+          response.error ?? 'Erro desconhecido na API',
+        );
+      }
+    }
+  }
+
   // Busca detalhes de um título específico
   Future<TituloDetailsResult> getTituloDetails(
     ClientType clientType,
@@ -774,6 +852,190 @@ class AuthService {
       return AtribuirVagaFotoResult.error('Erro inesperado: $e');
     }
   }
+
+  // Cria uma negociação para parcelas selecionadas
+  Future<NegociacaoResult> criarNegociacaoResort(
+    ClientType clientType,
+    String cotaId,
+    List<int> parcelasIdentificadores,
+    double valorCalculadoFront,
+  ) async {
+    _log.operation(
+      'Creating negotiation for quota ID: $cotaId with ${parcelasIdentificadores.length} installments',
+    );
+
+    final response = await _apiService.criarNegociacaoResort(
+      clientType,
+      cotaId,
+      parcelasIdentificadores,
+      valorCalculadoFront,
+    );
+
+    if (response.success && response.data != null) {
+      _log.success('Negotiation created successfully for quota ID: $cotaId');
+      return NegociacaoResult.success(response.data!);
+    } else if (response.success && response.data == null) {
+      _log.warning('API responded successfully but no data returned');
+      return NegociacaoResult.error('Erro ao criar negociação');
+    } else {
+      if (response.statusCode == 0 ||
+          (response.error != null && response.error!.contains('conexão'))) {
+        _log.error(
+          'Connection error - statusCode: ${response.statusCode}, error: ${response.error}',
+        );
+        return NegociacaoResult.connectionError(
+          'Falha de conexão. Verifique sua internet e tente novamente.',
+        );
+      } else {
+        _log.warning('API responded with error: ${response.error}');
+        return NegociacaoResult.error(
+          response.error ?? 'Erro ao criar negociação',
+        );
+      }
+    }
+  }
+
+  // Lista todas as guias de negociação de uma cota
+  Future<GuiaNegociacaoResult> getGuiasNegociacao(
+    ClientType clientType,
+    String cotaId,
+  ) async {
+    _log.operation('Fetching negotiation guides list for quota ID: $cotaId');
+
+    final response = await _apiService.getGuiasNegociacao(
+      clientType,
+      cotaId,
+    );
+
+    if (response.success && response.data != null) {
+      _log.success('Guides list fetched successfully');
+      return GuiaNegociacaoResult.success(response.data!);
+    } else if (response.success && response.data == null) {
+      _log.warning('API responded successfully but no guides found');
+      return GuiaNegociacaoResult.error('Nenhuma guia encontrada');
+    } else {
+      if (response.statusCode == 0 ||
+          (response.error != null && response.error!.contains('conexão'))) {
+        _log.error(
+          'Connection error - statusCode: ${response.statusCode}, error: ${response.error}',
+        );
+        return GuiaNegociacaoResult.connectionError(
+          'Falha de conexão. Verifique sua internet e tente novamente.',
+        );
+      } else {
+        _log.warning('API responded with error: ${response.error}');
+        return GuiaNegociacaoResult.error(
+          response.error ?? 'Erro ao buscar guias',
+        );
+      }
+    }
+  }
+
+  // Busca detalhes de uma guia de negociação
+  Future<GuiaNegociacaoResult> getGuiaNegociacao(
+    ClientType clientType,
+    String cotaId,
+    String guiaId,
+  ) async {
+    _log.operation(
+      'Fetching negotiation guide for quota ID: $cotaId, guide ID: $guiaId',
+    );
+
+    final response = await _apiService.getGuiaNegociacao(
+      clientType,
+      cotaId,
+      guiaId,
+    );
+
+    if (response.success && response.data != null) {
+      _log.success('Guide fetched successfully for ID: $guiaId');
+      return GuiaNegociacaoResult.success(response.data!);
+    } else if (response.success && response.data == null) {
+      _log.warning('API responded successfully but guide not found');
+      return GuiaNegociacaoResult.error('Guia não encontrada');
+    } else {
+      if (response.statusCode == 0 ||
+          (response.error != null && response.error!.contains('conexão'))) {
+        _log.error(
+          'Connection error - statusCode: ${response.statusCode}, error: ${response.error}',
+        );
+        return GuiaNegociacaoResult.connectionError(
+          'Falha de conexão. Verifique sua internet e tente novamente.',
+        );
+      } else {
+        _log.warning('API responded with error: ${response.error}');
+        return GuiaNegociacaoResult.error(
+          response.error ?? 'Erro ao buscar guia',
+        );
+      }
+    }
+  }
+}
+
+// Classe para padronizar resultados de criação de negociação
+class NegociacaoResult {
+  final bool success;
+  final Map<String, dynamic>? data;
+  final String? error;
+  final bool isConnectionError;
+
+  bool get hasData => data != null && data!.isNotEmpty;
+
+  NegociacaoResult._({
+    required this.success,
+    this.data,
+    this.error,
+    this.isConnectionError = false,
+  });
+
+  factory NegociacaoResult.success(Map<String, dynamic> data) {
+    return NegociacaoResult._(success: true, data: data);
+  }
+
+  factory NegociacaoResult.error(String error) {
+    return NegociacaoResult._(success: false, error: error);
+  }
+
+  factory NegociacaoResult.connectionError(String error) {
+    return NegociacaoResult._(
+      success: false,
+      error: error,
+      isConnectionError: true,
+    );
+  }
+}
+
+// Classe para padronizar resultados de busca de guia de negociação
+class GuiaNegociacaoResult {
+  final bool success;
+  final Map<String, dynamic>? data;
+  final String? error;
+  final bool isConnectionError;
+
+  bool get hasData => data != null && data!.isNotEmpty;
+
+  GuiaNegociacaoResult._({
+    required this.success,
+    this.data,
+    this.error,
+    this.isConnectionError = false,
+  });
+
+  factory GuiaNegociacaoResult.success(Map<String, dynamic> data) {
+    return GuiaNegociacaoResult._(success: true, data: data);
+  }
+
+  factory GuiaNegociacaoResult.error(String error) {
+    return GuiaNegociacaoResult._(success: false, error: error);
+  }
+
+  factory GuiaNegociacaoResult.connectionError(String error) {
+    return GuiaNegociacaoResult._(
+      success: false,
+      error: error,
+      isConnectionError: true,
+    );
+  }
 }
 
 // Classe para padronizar resultados de autenticação
@@ -887,37 +1149,6 @@ class CobrancasResult {
 
   factory CobrancasResult.connectionError(String error) {
     return CobrancasResult._(
-      success: false,
-      error: error,
-      isConnectionError: true,
-    );
-  }
-}
-
-// Classe para padronizar resultados de negociação
-class NegociacaoResult {
-  final bool success;
-  final Map<String, dynamic>? data;
-  final String? error;
-  final bool isConnectionError;
-
-  NegociacaoResult._({
-    required this.success,
-    this.data,
-    this.error,
-    this.isConnectionError = false,
-  });
-
-  factory NegociacaoResult.success(Map<String, dynamic> data) {
-    return NegociacaoResult._(success: true, data: data);
-  }
-
-  factory NegociacaoResult.error(String error) {
-    return NegociacaoResult._(success: false, error: error);
-  }
-
-  factory NegociacaoResult.connectionError(String error) {
-    return NegociacaoResult._(
       success: false,
       error: error,
       isConnectionError: true,
@@ -1117,6 +1348,72 @@ class UploadOutOfDbResult {
   factory UploadOutOfDbResult.error(String error) {
     return UploadOutOfDbResult._(success: false, error: error);
   }
+}
+
+// Classe para padronizar resultados de busca de cotas do resort
+class CotasResortResult {
+  final bool success;
+  final List<Map<String, dynamic>>? data;
+  final String? error;
+  final bool isConnectionError;
+
+  CotasResortResult._({
+    required this.success,
+    this.data,
+    this.error,
+    this.isConnectionError = false,
+  });
+
+  factory CotasResortResult.success(List<Map<String, dynamic>> data) {
+    return CotasResortResult._(success: true, data: data);
+  }
+
+  factory CotasResortResult.error(String error) {
+    return CotasResortResult._(success: false, error: error);
+  }
+
+  factory CotasResortResult.connectionError(String error) {
+    return CotasResortResult._(
+      success: false,
+      error: error,
+      isConnectionError: true,
+    );
+  }
+
+  bool get hasData => data != null && data!.isNotEmpty;
+}
+
+// Classe para padronizar resultados de detalhes de cota do resort
+class CotaResortDetailsResult {
+  final bool success;
+  final Map<String, dynamic>? data;
+  final String? error;
+  final bool isConnectionError;
+
+  CotaResortDetailsResult._({
+    required this.success,
+    this.data,
+    this.error,
+    this.isConnectionError = false,
+  });
+
+  factory CotaResortDetailsResult.success(Map<String, dynamic> data) {
+    return CotaResortDetailsResult._(success: true, data: data);
+  }
+
+  factory CotaResortDetailsResult.error(String error) {
+    return CotaResortDetailsResult._(success: false, error: error);
+  }
+
+  factory CotaResortDetailsResult.connectionError(String error) {
+    return CotaResortDetailsResult._(
+      success: false,
+      error: error,
+      isConnectionError: true,
+    );
+  }
+
+  bool get hasData => data != null;
 }
 
 // Classe para padronizar resultados de atribuição de foto do titular

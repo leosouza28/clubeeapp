@@ -11,7 +11,10 @@ import '../services/client_service.dart';
 import '../services/auth_service.dart';
 import '../models/user_model.dart';
 import '../models/titulo_model.dart';
+import '../models/cota_resort_model.dart';
+import '../utils/formatters.dart';
 import 'titulo_details_screen.dart';
+import 'cota_resort_details_screen.dart';
 import 'change_password_screen.dart';
 import 'edit_profile_screen.dart';
 import 'criar_acesso_screen.dart';
@@ -38,6 +41,8 @@ class _AccountScreenState extends State<AccountScreen> {
   UserModel? _currentUser;
   List<TituloModel> _titulos = [];
   bool _isLoadingTitulos = false;
+  List<CotaResortModel> _cotas = [];
+  bool _isLoadingCotas = false;
   StreamSubscription<bool>? _unauthorizedLogoutSubscription;
 
   @override
@@ -59,6 +64,7 @@ class _AccountScreenState extends State<AccountScreen> {
                   _isLoggedIn = false;
                   _currentUser = null;
                   _titulos = [];
+                  _cotas = [];
                 });
               }
             });
@@ -87,12 +93,14 @@ class _AccountScreenState extends State<AccountScreen> {
             _currentUser = user;
           });
           _loadTitulos();
+          _loadCotas();
         } else {}
       } else {
         setState(() {
           _isLoggedIn = false;
           _currentUser = null;
           _titulos = [];
+          _cotas = [];
         });
       }
     } catch (e) {
@@ -508,6 +516,12 @@ class _AccountScreenState extends State<AccountScreen> {
                 // Seção de títulos
                 _buildTitulosSection(),
                 const SizedBox(height: 24),
+
+                // Seção de cotas do resort (apenas se tiver cotas)
+                if (_cotas.isNotEmpty) ...[
+                  _buildCotasResortSection(),
+                  const SizedBox(height: 24),
+                ],
 
                 // Seção de funcionalidades internas (apenas se tiver permissões)
                 if (_hasAdminPermissions()) ...[
@@ -976,6 +990,187 @@ class _AccountScreenState extends State<AccountScreen> {
     return _currentUser?.perfilV2?.scopes.isNotEmpty ?? false;
   }
 
+  // Constrói a seção de cotas do resort
+  Widget _buildCotasResortSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const SizedBox(width: 8),
+            Text(
+              'Cotas do Resort',
+              style: Theme.of(
+                context,
+              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+            ),
+            const Spacer(),
+            if (_isLoadingCotas)
+              SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(
+                    Theme.of(context).primaryColor,
+                  ),
+                ),
+              ),
+          ],
+        ),
+        const SizedBox(height: 16),
+
+        Column(
+          children: _cotas.map((cota) => _buildCotaResortCard(cota)).toList(),
+        ),
+      ],
+    );
+  }
+
+  // Constrói o card de uma cota do resort
+  Widget _buildCotaResortCard(CotaResortModel cota) {
+    final List<Color> gradientColors = cota.isAtivo
+        ? [Colors.green.shade50, Colors.green.shade100]
+        : [Colors.grey.shade100, Colors.grey.shade200];
+
+    return GestureDetector(
+      onTap: () => _navigateToCotaDetails(cota),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 16),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: gradientColors,
+          ),
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: cota.isAtivo
+                  ? Colors.green.withValues(alpha: 0.2)
+                  : Colors.grey.withValues(alpha: 0.2),
+              blurRadius: 8,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Contrato',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey[600],
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          cota.numeroContrato,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black87,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: cota.isAtivo ? Colors.green : Colors.grey,
+                      borderRadius: BorderRadius.circular(15),
+                      boxShadow: [
+                        BoxShadow(
+                          color: (cota.isAtivo ? Colors.green : Colors.grey)
+                              .withValues(alpha: 0.3),
+                          blurRadius: 4,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Text(
+                      cota.statusContrato,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+
+              // Informações do contrato
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.8),
+                  borderRadius: BorderRadius.circular(15),
+                ),
+                child: Column(
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Valor Negociado',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey[600],
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              Formatters.currency(cota.valorNegociado),
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.green.shade700,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // Navega para tela de detalhes da cota
+  void _navigateToCotaDetails(CotaResortModel cota) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => CotaResortDetailsScreen(cotaId: cota.id),
+      ),
+    );
+  }
+
   // Constrói a seção de funcionalidades internas
   Widget _buildInternalFeaturesSection() {
     return Column(
@@ -1232,6 +1427,7 @@ class _AccountScreenState extends State<AccountScreen> {
           _isLoading = false;
         });
         _loadTitulos();
+        _loadCotas();
         _showSuccessToast('Login realizado com sucesso!');
 
         // Verificar acesso após 1 segundo
@@ -1326,6 +1522,7 @@ class _AccountScreenState extends State<AccountScreen> {
               // Aguardar antes de carregar títulos
               await Future.delayed(const Duration(milliseconds: 500));
               _loadTitulos();
+              _loadCotas();
             }
           }
         } catch (e) {
@@ -1400,6 +1597,48 @@ class _AccountScreenState extends State<AccountScreen> {
     }
   }
 
+  // Carrega as cotas do resort do usuário
+  Future<void> _loadCotas() async {
+    setState(() {
+      _isLoadingCotas = true;
+    });
+
+    try {
+      final authService = await AuthService.getInstance();
+      final clientService = ClientService.instance;
+      final cotasResult = await authService.getCotasResort(
+        clientService.currentConfig.clientType,
+      );
+
+      if (cotasResult.success && cotasResult.hasData) {
+        final cotas = cotasResult.data!
+            .map((cotaJson) => CotaResortModel.fromJson(cotaJson))
+            .toList();
+        setState(() {
+          _cotas = cotas;
+          _isLoadingCotas = false;
+        });
+      } else if (cotasResult.isConnectionError) {
+        // Erro de conexão - apenas oculta a seção
+        setState(() {
+          _cotas = [];
+          _isLoadingCotas = false;
+        });
+      } else {
+        // Resposta vazia ou erro de API - comportamento normal (oculta a seção)
+        setState(() {
+          _cotas = [];
+          _isLoadingCotas = false;
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _cotas = [];
+        _isLoadingCotas = false;
+      });
+    }
+  }
+
   // Handle logout
   Future<void> _handleLogout() async {
     final shouldLogout = await showDialog<bool>(
@@ -1428,6 +1667,7 @@ class _AccountScreenState extends State<AccountScreen> {
           _isLoggedIn = false;
           _currentUser = null;
           _titulos = [];
+          _cotas = [];
           _documentController.clear();
           _passwordController.clear();
         });
@@ -1536,6 +1776,7 @@ class _AccountScreenState extends State<AccountScreen> {
           // Se result for true, significa que os dados foram atualizados
           if (result == true) {
             _loadTitulos(); // Recarrega os dados do usuário
+            _loadCotas(); // Recarrega as cotas
             _checkAuthenticationStatus(); // Atualiza o usuário atual
           }
         });

@@ -53,7 +53,7 @@ class ApiService {
     final config = _clientConfigs[clientType]!;
     final String apiUrl;
     if (kDebugMode) {
-      apiUrl = 'http://192.168.0.104:${config['port']}';
+      apiUrl = 'http://192.168.68.115:${config['port']}';
     } else {
       apiUrl = config['apiUrl'];
     }
@@ -357,6 +357,183 @@ class ApiService {
     }
   }
 
+  // Busca cotas do resort do usuário autenticado
+  Future<ApiResponse<List<Map<String, dynamic>>>> getCotasResort(
+    ClientType clientType,
+  ) async {
+    try {
+      final baseUrl = _getBaseUrl(clientType);
+      final url = Uri.parse('$baseUrl/v1/resort/cotas');
+
+      final headers = await _getDefaultHeaders(clientType, includeAuth: true);
+
+      final response = await http.get(url, headers: headers);
+
+      // Verificar se é 401 e fazer logout
+      await _checkUnauthorizedAndLogout(response.statusCode);
+
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> responseData = jsonDecode(response.body);
+        final List<dynamic> cotasData = responseData['cotas_resort'] ?? [];
+        final List<Map<String, dynamic>> cotas = cotasData
+            .cast<Map<String, dynamic>>();
+        return ApiResponse.success(cotas);
+      } else {
+        final errorData = _parseErrorResponse(response);
+        return ApiResponse.error(
+          errorData['message'] ?? 'Erro ao buscar cotas do resort',
+          response.statusCode,
+        );
+      }
+    } on SocketException {
+      return ApiResponse.error('Erro de conexão', 0);
+    } catch (e) {
+      return ApiResponse.error('Erro inesperado: $e', 0);
+    }
+  }
+
+  // Busca detalhes de uma cota do resort específica
+  Future<ApiResponse<Map<String, dynamic>>> getCotaResortDetails(
+    ClientType clientType,
+    String cotaId, {
+    bool getParcelas = false,
+  }) async {
+    try {
+      final baseUrl = _getBaseUrl(clientType);
+      final queryParams = getParcelas ? '?get_parcelas=1' : '';
+      final url = Uri.parse('$baseUrl/v1/resort/cotas/$cotaId$queryParams');
+
+      final headers = await _getDefaultHeaders(clientType, includeAuth: true);
+
+      final response = await http.get(url, headers: headers);
+
+      // Verificar se é 401 e fazer logout
+      await _checkUnauthorizedAndLogout(response.statusCode);
+
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> responseData = jsonDecode(response.body);
+        return ApiResponse.success(responseData);
+      } else {
+        final errorData = _parseErrorResponse(response);
+        return ApiResponse.error(
+          errorData['message'] ?? 'Erro ao buscar detalhes da cota',
+          response.statusCode,
+        );
+      }
+    } on SocketException {
+      return ApiResponse.error('Erro de conexão', 0);
+    } catch (e) {
+      return ApiResponse.error('Erro inesperado: $e', 0);
+    }
+  }
+
+  // Cria uma negociação para parcelas selecionadas
+  Future<ApiResponse<Map<String, dynamic>>> criarNegociacaoResort(
+    ClientType clientType,
+    String cotaId,
+    List<int> parcelasIdentificadores,
+    double valorCalculadoFront,
+  ) async {
+    try {
+      final baseUrl = _getBaseUrl(clientType);
+      final url = Uri.parse('$baseUrl/v1/resort/cotas/$cotaId/negociacao-app');
+
+      final headers = await _getDefaultHeaders(clientType, includeAuth: true);
+
+      final body = jsonEncode({
+        'parcelas': parcelasIdentificadores,
+        'valor_calculado_front': valorCalculadoFront,
+      });
+
+      final response = await http.post(url, headers: headers, body: body);
+
+      // Verificar se é 401 e fazer logout
+      await _checkUnauthorizedAndLogout(response.statusCode);
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final Map<String, dynamic> responseData = jsonDecode(response.body);
+        return ApiResponse.success(responseData);
+      } else {
+        final errorData = _parseErrorResponse(response);
+        return ApiResponse.error(
+          errorData['message'] ?? 'Erro ao criar negociação',
+          response.statusCode,
+        );
+      }
+    } on SocketException {
+      return ApiResponse.error('Erro de conexão', 0);
+    } catch (e) {
+      return ApiResponse.error('Erro inesperado: $e', 0);
+    }
+  }
+
+  // Lista todas as negociações (guias) de uma cota
+  Future<ApiResponse<Map<String, dynamic>>> getGuiasNegociacao(
+    ClientType clientType,
+    String cotaId,
+  ) async {
+    try {
+      final baseUrl = _getBaseUrl(clientType);
+      final url = Uri.parse('$baseUrl/v1/resort/cotas/$cotaId/negociacao');
+
+      final headers = await _getDefaultHeaders(clientType, includeAuth: true);
+
+      final response = await http.get(url, headers: headers);
+
+      // Verificar se é 401 e fazer logout
+      await _checkUnauthorizedAndLogout(response.statusCode);
+
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> responseData = jsonDecode(response.body);
+        return ApiResponse.success(responseData);
+      } else {
+        final errorData = _parseErrorResponse(response);
+        return ApiResponse.error(
+          errorData['message'] ?? 'Erro ao buscar guias de negociação',
+          response.statusCode,
+        );
+      }
+    } on SocketException {
+      return ApiResponse.error('Erro de conexão', 0);
+    } catch (e) {
+      return ApiResponse.error('Erro inesperado: $e', 0);
+    }
+  }
+
+  // Busca detalhes de uma negociação (guia) específica
+  Future<ApiResponse<Map<String, dynamic>>> getGuiaNegociacao(
+    ClientType clientType,
+    String cotaId,
+    String guiaId,
+  ) async {
+    try {
+      final baseUrl = _getBaseUrl(clientType);
+      final url = Uri.parse('$baseUrl/v1/resort/cotas/$cotaId/negociacao/$guiaId');
+
+      final headers = await _getDefaultHeaders(clientType, includeAuth: true);
+
+      final response = await http.get(url, headers: headers);
+
+      // Verificar se é 401 e fazer logout
+      await _checkUnauthorizedAndLogout(response.statusCode);
+
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> responseData = jsonDecode(response.body);
+        return ApiResponse.success(responseData);
+      } else {
+        final errorData = _parseErrorResponse(response);
+        return ApiResponse.error(
+          errorData['message'] ?? 'Erro ao buscar guia de negociação',
+          response.statusCode,
+        );
+      }
+    } on SocketException {
+      return ApiResponse.error('Erro de conexão', 0);
+    } catch (e) {
+      return ApiResponse.error('Erro inesperado: $e', 0);
+    }
+  }
+
   // Verifica acesso do usuário autenticado
   Future<ApiResponse<Map<String, dynamic>>> verificarAcesso(
     ClientType clientType,
@@ -503,6 +680,42 @@ class ApiService {
         final errorData = _parseErrorResponse(response);
         return ApiResponse.error(
           errorData['message'] ?? 'Erro ao buscar cortesias disponíveis',
+          response.statusCode,
+        );
+      }
+    } on SocketException {
+      return ApiResponse.error('Erro de conexão', 0);
+    } catch (e) {
+      return ApiResponse.error('Erro desconhecido: $e', 0);
+    }
+  }
+
+  // Busca informações de horário para cortesias disponíveis
+  Future<ApiResponse<Map<String, dynamic>>> getCortesiasDisponiveisHorario(
+    ClientType clientType,
+    String tituloId,
+    String data,
+  ) async {
+    try {
+      final baseUrl = _getBaseUrl(clientType);
+      final url = Uri.parse(
+        '$baseUrl/v1/cortesias-disponiveis-horario/$tituloId/$data',
+      );
+
+      final headers = await _getDefaultHeaders(clientType, includeAuth: true);
+
+      final response = await http.get(url, headers: headers);
+
+      // Verificar se é 401 e fazer logout
+      await _checkUnauthorizedAndLogout(response.statusCode);
+
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> responseData = jsonDecode(response.body);
+        return ApiResponse.success(responseData);
+      } else {
+        final errorData = _parseErrorResponse(response);
+        return ApiResponse.error(
+          errorData['message'] ?? 'Erro ao buscar horário de cortesias',
           response.statusCode,
         );
       }

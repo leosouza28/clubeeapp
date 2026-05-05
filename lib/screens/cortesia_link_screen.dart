@@ -23,38 +23,10 @@ class _CortesiaLinkScreenState extends State<CortesiaLinkScreen> {
   final List<ConvidadoFormData> _convidados = [];
   final _formKey = GlobalKey<FormState>();
 
-  // Controle de horário para cortesias promocionais
-  bool _cortesiaPromocionalControleHorario = false;
-  String? _cortesiaPromocionalHorarioLimite;
-
   @override
   void initState() {
     super.initState();
     _carregarCortesia();
-    _carregarTermosDeUso();
-  }
-
-  Future<void> _carregarTermosDeUso() async {
-    try {
-      final apiService = await ApiService.getInstance();
-      final clientService = ClientService.instance;
-      final resultado = await apiService.getTermosDeUso(
-        clientService.currentConfig.clientType,
-      );
-
-      if (resultado.success && resultado.data != null) {
-        setState(() {
-          _cortesiaPromocionalControleHorario =
-              resultado.data!['cortesia_promocional_controle_horario']
-                  as bool? ??
-              false;
-          _cortesiaPromocionalHorarioLimite =
-              resultado.data!['cortesia_promocional_horario_limite'] as String?;
-        });
-      }
-    } catch (e) {
-      // Erro ao carregar termos
-    }
   }
 
   Future<void> _carregarCortesia() async {
@@ -297,10 +269,9 @@ class _CortesiaLinkScreenState extends State<CortesiaLinkScreen> {
                           height: 1.5,
                         ),
                       ),
-                      // Exibir informação de horário limite se for cortesia promocional
-                      if (_cortesia?.tipoCortesia == 'PROMOCIONAL' &&
-                          _cortesiaPromocionalControleHorario &&
-                          _cortesiaPromocionalHorarioLimite != null) ...[
+                      // Exibir informação de horário limite se houver controle de horário
+                      if (_cortesia?.controleHorario == true &&
+                          _cortesia?.horarioLimite != null) ...[
                         const SizedBox(height: 16),
                         Container(
                           padding: const EdgeInsets.all(12),
@@ -319,7 +290,7 @@ class _CortesiaLinkScreenState extends State<CortesiaLinkScreen> {
                               const SizedBox(width: 8),
                               Expanded(
                                 child: Text(
-                                  'Atenção: Esta cortesia deve ser retirada até às $_cortesiaPromocionalHorarioLimite.',
+                                  'Atenção: Esta cortesia deve ser utilizada até: ${_cortesia!.horarioLimite}.',
                                   style: TextStyle(
                                     color: Colors.orange.shade900,
                                     fontSize: 13,
@@ -1179,36 +1150,9 @@ class CortesiaSucessoScreen extends StatefulWidget {
 }
 
 class _CortesiaSucessoScreenState extends State<CortesiaSucessoScreen> {
-  bool _cortesiaPromocionalControleHorario = false;
-  String? _cortesiaPromocionalHorarioLimite;
-
   @override
   void initState() {
     super.initState();
-    _carregarTermosDeUso();
-  }
-
-  Future<void> _carregarTermosDeUso() async {
-    try {
-      final apiService = await ApiService.getInstance();
-      final clientService = ClientService.instance;
-      final resultado = await apiService.getTermosDeUso(
-        clientService.currentConfig.clientType,
-      );
-
-      if (resultado.success && resultado.data != null) {
-        setState(() {
-          _cortesiaPromocionalControleHorario =
-              resultado.data!['cortesia_promocional_controle_horario']
-                  as bool? ??
-              false;
-          _cortesiaPromocionalHorarioLimite =
-              resultado.data!['cortesia_promocional_horario_limite'] as String?;
-        });
-      }
-    } catch (e) {
-      // Erro ao carregar termos
-    }
   }
 
   String _getStatusText(String status) {
@@ -1246,6 +1190,8 @@ class _CortesiaSucessoScreenState extends State<CortesiaSucessoScreen> {
     final data = widget.cortesiaData['data'] as String?;
     final titulo = widget.cortesiaData['titulo'] as Map<String, dynamic>?;
     final tipoCortesia = widget.cortesiaData['tipo_cortesia'] as String?;
+    final controleHorario = widget.cortesiaData['controle_horario'] as bool?;
+    final horarioLimite = widget.cortesiaData['horario_limite'] as String?;
 
     return Scaffold(
       appBar: AppBar(
@@ -1385,9 +1331,7 @@ class _CortesiaSucessoScreenState extends State<CortesiaSucessoScreen> {
             ),
 
             // Informação de horário limite (se aplicável)
-            if (tipoCortesia == 'PROMOCIONAL' &&
-                _cortesiaPromocionalControleHorario &&
-                _cortesiaPromocionalHorarioLimite != null) ...[
+            if (controleHorario == true && horarioLimite != null) ...[
               Container(
                 margin: const EdgeInsets.symmetric(horizontal: 16),
                 padding: const EdgeInsets.all(16),
@@ -1418,7 +1362,7 @@ class _CortesiaSucessoScreenState extends State<CortesiaSucessoScreen> {
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            'Esta cortesia deve ser retirada até às $_cortesiaPromocionalHorarioLimite.',
+                            'Esta cortesia deve ser utilizada até: $horarioLimite.',
                             style: TextStyle(
                               color: Colors.orange.shade800,
                               fontSize: 14,
