@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:firebase_core/firebase_core.dart';
@@ -13,6 +14,14 @@ class FirebaseService {
   static FirebaseService get instance => _instance ??= FirebaseService._();
 
   FirebaseService._();
+
+  static final StreamController<RemoteMessage> _notificationActionController =
+      StreamController<RemoteMessage>.broadcast();
+
+  /// Emite mensagens FCM que contêm redirect_cortesias: true.
+  /// Escute este stream para acionar o fluxo de reservas.
+  static Stream<RemoteMessage> get notificationActionStream =>
+      _notificationActionController.stream;
 
   FirebaseApp? _currentApp;
   FirebaseMessaging? _messaging;
@@ -189,17 +198,30 @@ class FirebaseService {
       print(
         '📱 Mensagem recebida em foreground: ${message.notification?.title}',
       );
+      print('📱 Dados da mensagem: ${message.data}');
     }
-    // TODO: Implementar lógica para mostrar notificação local
-    // LoggingService.instance.json(message.toMap());
+    if (_hasNotificationAction(message)) {
+      _notificationActionController.add(message);
+    }
   }
 
   void _handleMessageOpenedApp(RemoteMessage message) {
     if (kDebugMode) {
       print('🚀 App aberto via notificação: ${message.notification?.title}');
+      print('🚀 Dados da mensagem: ${message.data}');
     }
-    // TODO: Implementar lógica para navegar para tela específica
-    // LoggingService.instance.json(message.toMap());
+    if (_hasNotificationAction(message)) {
+      _notificationActionController.add(message);
+    }
+  }
+
+  /// Retorna true se a mensagem FCM contiver redirect_cortesias: true
+  /// ou redirect_link com uma URL.
+  static bool _hasNotificationAction(RemoteMessage message) {
+    final cortesias = message.data['redirect_cortesias'];
+    if (cortesias == 'true' || cortesias == true) return true;
+    final link = message.data['redirect_link'];
+    return link != null && (link as String).isNotEmpty;
   }
 
   // Salvar FCM Token no SharedPreferences

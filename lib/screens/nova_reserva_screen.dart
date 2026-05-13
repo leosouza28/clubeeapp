@@ -335,7 +335,8 @@ class _NovaReservaScreenState extends State<NovaReservaScreen> {
           String mensagemSucesso = 'Reserva criada com sucesso!';
 
           // Adicionar informação de horário limite se aplicável
-          if (_cortesiaHorario != null &&
+          if (_cortesiaSelecionada?.tipo == 'PROMOCIONAL' &&
+              _cortesiaHorario != null &&
               _cortesiaHorario!.controleHorario &&
               _cortesiaHorario!.horarioLimite != null) {
             mensagemSucesso +=
@@ -1007,7 +1008,8 @@ class _NovaReservaScreenState extends State<NovaReservaScreen> {
                   style: TextStyle(color: Colors.blue.shade800, fontSize: 14),
                 ),
                 // Exibir informação de horário limite se houver controle de horário
-                if (_cortesiaHorario != null &&
+                if (_cortesiaSelecionada?.tipo == 'PROMOCIONAL' &&
+                    _cortesiaHorario != null &&
                     _cortesiaHorario!.controleHorario &&
                     _cortesiaHorario!.horarioLimite != null) ...[
                   const SizedBox(height: 12),

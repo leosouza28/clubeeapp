@@ -9,9 +9,11 @@ import 'dart:async';
 import '../services/api_service.dart';
 import '../services/client_service.dart';
 import '../services/auth_service.dart';
+import '../services/logging_service.dart';
 import '../models/user_model.dart';
 import '../models/titulo_model.dart';
 import '../models/cota_resort_model.dart';
+import '../models/tag_model.dart';
 import '../utils/formatters.dart';
 import 'titulo_details_screen.dart';
 import 'cota_resort_details_screen.dart';
@@ -43,6 +45,9 @@ class _AccountScreenState extends State<AccountScreen> {
   bool _isLoadingTitulos = false;
   List<CotaResortModel> _cotas = [];
   bool _isLoadingCotas = false;
+  List<TagModel> _todasTags = [];
+  List<String> _tagsSelecionadas = [];
+  bool _isLoadingTags = false;
   StreamSubscription<bool>? _unauthorizedLogoutSubscription;
 
   @override
@@ -65,6 +70,8 @@ class _AccountScreenState extends State<AccountScreen> {
                   _currentUser = null;
                   _titulos = [];
                   _cotas = [];
+                  _todasTags = [];
+                  _tagsSelecionadas = [];
                 });
               }
             });
@@ -94,6 +101,7 @@ class _AccountScreenState extends State<AccountScreen> {
           });
           _loadTitulos();
           _loadCotas();
+          _carregarTags();
         } else {}
       } else {
         setState(() {
@@ -527,6 +535,12 @@ class _AccountScreenState extends State<AccountScreen> {
                 if (_hasAdminPermissions()) ...[
                   _buildInternalFeaturesSection(),
                   const SizedBox(height: 24),
+                ],
+
+                // Seção de interesses do usuário
+                if (_todasTags.isNotEmpty || _isLoadingTags) ...[
+                  _buildTagsSection(),
+                  const SizedBox(height: 16),
                 ],
 
                 // Seção de ações do usuário
@@ -1208,6 +1222,103 @@ class _AccountScreenState extends State<AccountScreen> {
     );
   }
 
+  // Constrói a seção de interesses/tags do usuário
+  Widget _buildTagsSection() {
+    final tagsSelecionadasObj = _todasTags
+        .where((t) => _tagsSelecionadas.contains(t.descricao))
+        .toList();
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Icon(
+          Icons.interests_rounded,
+          color: Theme.of(context).primaryColor,
+          size: 18,
+        ),
+        const SizedBox(width: 6),
+        Text(
+          'Interesses:',
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: Theme.of(context).primaryColor,
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: _isLoadingTags
+              ? SizedBox(
+                  height: 16,
+                  width: 16,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Theme.of(context).primaryColor,
+                  ),
+                )
+              : tagsSelecionadasObj.isEmpty
+                  ? GestureDetector(
+                      onTap: _todasTags.isEmpty
+                          ? null
+                          : _mostrarModalSugestaoTags,
+                      child: Text(
+                        'Definir interesses',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Theme.of(context)
+                              .primaryColor
+                              .withValues(alpha: 0.7),
+                          decoration: TextDecoration.underline,
+                        ),
+                      ),
+                    )
+                  : Wrap(
+                      spacing: 4,
+                      runSpacing: 4,
+                      children: tagsSelecionadasObj
+                          .map(
+                            (tag) => Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 3,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Theme.of(context)
+                                    .primaryColor
+                                    .withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(
+                                  color: Theme.of(context)
+                                      .primaryColor
+                                      .withValues(alpha: 0.3),
+                                ),
+                              ),
+                              child: Text(
+                                tag.descricao,
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: Theme.of(context).primaryColor,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                          )
+                          .toList(),
+                    ),
+        ),
+        if (!_isLoadingTags)
+          GestureDetector(
+            onTap: _todasTags.isEmpty ? null : _mostrarModalSugestaoTags,
+            child: Icon(
+              Icons.edit_outlined,
+              size: 16,
+              color: Colors.grey.shade400,
+            ),
+          ),
+      ],
+    );
+  }
+
   // Constrói a seção de ações do usuário
   Widget _buildUserActionsSection() {
     return Column(
@@ -1637,6 +1748,233 @@ class _AccountScreenState extends State<AccountScreen> {
         _isLoadingCotas = false;
       });
     }
+  }
+
+  // Carrega as tags de interesses do usuário
+  Future<void> _carregarTags() async {
+    final clientService = ClientService.instance;
+    setState(() => _isLoadingTags = true);
+
+    try {
+      final apiService = await ApiService.getInstance();
+      final response = await apiService.getUserTags(
+        clientService.currentConfig.clientType,
+      );
+
+      if (!mounted) return;
+
+      if (response.success && response.data != null) {
+        final data = response.data!;
+        final todasTags =
+            (data['todas_tags'] as List<dynamic>? ?? [])
+                .map((t) => TagModel.fromJson(t as Map<String, dynamic>))
+                .toList();
+        final selecionadas =
+            (data['tags_selecionadas'] as List<dynamic>? ?? [])
+                .map((id) => id.toString())
+                .toList();
+        final naoDefinidaAinda =
+            data['tags_definidas_by_user'] as bool? ?? true;
+
+        setState(() {
+          _todasTags = todasTags;
+          _tagsSelecionadas = selecionadas;
+          _isLoadingTags = false;
+        });
+
+        if (naoDefinidaAinda && todasTags.isNotEmpty) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) _mostrarModalSugestaoTags();
+          });
+        }
+      } else {
+        setState(() => _isLoadingTags = false);
+      }
+    } catch (_) {
+      if (mounted) setState(() => _isLoadingTags = false);
+    }
+  }
+
+  // Salva as tags selecionadas
+  Future<void> _salvarTags(List<String> tagIds) async {
+    final clientService = ClientService.instance;
+    try {
+      final apiService = await ApiService.getInstance();
+      final response = await apiService.setUserTags(
+        clientService.currentConfig.clientType,
+        tagIds,
+      );
+
+      if (!mounted) return;
+
+      if (response.success) {
+        setState(() {
+          _tagsSelecionadas = tagIds;
+        });
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Interesses salvos com sucesso!'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(response.error ?? 'Erro ao salvar interesses'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Erro ao salvar interesses'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  // Modal de sugestão de tags quando o usuário ainda não definiu seus interesses
+  void _mostrarModalSugestaoTags() {
+    List<String> selecaoTemp = List<String>.from(_tagsSelecionadas);
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, setModalState) {
+            return Container(
+              height: MediaQuery.of(ctx).size.height * 0.75,
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Handle de arraste
+                  Center(
+                    child: Container(
+                      margin: const EdgeInsets.only(top: 12, bottom: 4),
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade300,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Personalize sua experiência',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: Theme.of(context).primaryColor,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        const Text(
+                          'Selecione seus interesses para receber conteúdos e notificações personalizadas.',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.grey,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Divider(height: 1),
+                  Expanded(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                      child: Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: _todasTags.map((tag) {
+                          final selecionado = selecaoTemp.contains(tag.id);
+                          return FilterChip(
+                            label: Text(tag.descricao),
+                            selected: selecionado,
+                            selectedColor: Theme.of(
+                              context,
+                            ).primaryColor.withValues(alpha: 0.15),
+                            checkmarkColor: Theme.of(context).primaryColor,
+                            labelStyle: TextStyle(
+                              color: selecionado
+                                  ? Theme.of(context).primaryColor
+                                  : Colors.black87,
+                              fontWeight: selecionado
+                                  ? FontWeight.w600
+                                  : FontWeight.normal,
+                            ),
+                            side: BorderSide(
+                              color: selecionado
+                                  ? Theme.of(context).primaryColor
+                                  : Colors.grey.shade300,
+                            ),
+                            onSelected: (val) {
+                              setModalState(() {
+                                if (val) {
+                                  selecaoTemp.add(tag.descricao);
+                                } else {
+                                  selecaoTemp.remove(tag.descricao);
+                                }
+                              });
+                            },
+                          );
+                        }).toList(),
+                      ),
+                    ),
+                  ),
+                  Padding(
+                    padding: EdgeInsets.fromLTRB(
+                      16,
+                      8,
+                      16,
+                      16 + MediaQuery.of(ctx).viewInsets.bottom,
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: () => Navigator.of(ctx).pop(),
+                            child: const Text('Agora não'),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: () {
+                              Navigator.of(ctx).pop();
+                              _salvarTags(selecaoTemp);
+                            },
+                            child: const Text('Salvar interesses'),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 
   // Handle logout

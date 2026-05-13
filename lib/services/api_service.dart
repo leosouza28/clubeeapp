@@ -53,7 +53,7 @@ class ApiService {
     final config = _clientConfigs[clientType]!;
     final String apiUrl;
     if (kDebugMode) {
-      apiUrl = 'http://192.168.68.115:${config['port']}';
+      apiUrl = 'http://192.168.1.140:${config['port']}';
     } else {
       apiUrl = config['apiUrl'];
     }
@@ -2129,6 +2129,73 @@ class ApiService {
         final errorData = _parseErrorResponse(response);
         return ApiResponse.error(
           errorData['message'] ?? 'Erro ao atribuir foto do dependente',
+          response.statusCode,
+        );
+      }
+    } on SocketException {
+      return ApiResponse.error('Erro de conexão', 0);
+    } catch (e) {
+      return ApiResponse.error('Erro inesperado: $e', 0);
+    }
+  }
+
+  // Busca tags disponíveis e tags selecionadas pelo usuário
+  Future<ApiResponse<Map<String, dynamic>>> getUserTags(
+    ClientType clientType,
+  ) async {
+    try {
+      final baseUrl = _getBaseUrl(clientType);
+      final url = Uri.parse('$baseUrl/v1/user-tags');
+
+      final headers = await _getDefaultHeaders(clientType, includeAuth: true);
+
+      final response = await http.get(url, headers: headers);
+
+      await _checkUnauthorizedAndLogout(response.statusCode);
+
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> responseData =
+            jsonDecode(response.body) as Map<String, dynamic>;
+        return ApiResponse.success(responseData);
+      } else {
+        final errorData = _parseErrorResponse(response);
+        return ApiResponse.error(
+          errorData['message'] ?? 'Erro ao buscar interesses',
+          response.statusCode,
+        );
+      }
+    } on SocketException {
+      return ApiResponse.error('Erro de conexão', 0);
+    } catch (e) {
+      return ApiResponse.error('Erro inesperado: $e', 0);
+    }
+  }
+
+  // Salva as tags selecionadas pelo usuário
+  Future<ApiResponse<bool>> setUserTags(
+    ClientType clientType,
+    List<String> tagIds,
+  ) async {
+    try {
+      final baseUrl = _getBaseUrl(clientType);
+      final url = Uri.parse('$baseUrl/v1/user-tags');
+
+      final headers = await _getDefaultHeaders(clientType, includeAuth: true);
+
+      final response = await http.post(
+        url,
+        headers: headers,
+        body: jsonEncode({'tags': tagIds}),
+      );
+
+      await _checkUnauthorizedAndLogout(response.statusCode);
+
+      if (response.statusCode == 200) {
+        return ApiResponse.success(true);
+      } else {
+        final errorData = _parseErrorResponse(response);
+        return ApiResponse.error(
+          errorData['message'] ?? 'Erro ao salvar interesses',
           response.statusCode,
         );
       }

@@ -5,6 +5,7 @@ class NotificacaoModel {
   final String corpo;
   final DateTime createdAt;
   final bool isByUser;
+  final Map<String, dynamic>? data;
 
   NotificacaoModel({
     required this.id,
@@ -13,6 +14,7 @@ class NotificacaoModel {
     required this.corpo,
     required this.createdAt,
     required this.isByUser,
+    this.data,
   });
 
   factory NotificacaoModel.fromJson(Map<String, dynamic> json) {
@@ -25,6 +27,7 @@ class NotificacaoModel {
         json['created_at'] ?? DateTime.now().toIso8601String(),
       ),
       isByUser: json['is_by_user'] ?? false,
+      data: json['data'] as Map<String, dynamic>?,
     );
   }
 
@@ -36,6 +39,7 @@ class NotificacaoModel {
       'corpo': corpo,
       'created_at': createdAt.toIso8601String(),
       'is_by_user': isByUser,
+      'data': data,
     };
   }
 }
