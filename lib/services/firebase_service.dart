@@ -18,15 +18,28 @@ class FirebaseService {
   static final StreamController<RemoteMessage> _notificationActionController =
       StreamController<RemoteMessage>.broadcast();
 
-  /// Emite mensagens FCM que contêm redirect_cortesias: true.
-  /// Escute este stream para acionar o fluxo de reservas.
+  /// Armazena a última mensagem de ação recebida antes de haver um listener.
+  /// Isso resolve o problema de race condition quando o app é aberto via notificação.
+  static RemoteMessage? _pendingActionMessage;
+
+  /// Emite mensagens FCM que contêm redirect_cortesias ou redirect_carteirinhas.
+  /// Escute este stream para acionar os fluxos de reservas/carteirinhas.
   static Stream<RemoteMessage> get notificationActionStream =>
       _notificationActionController.stream;
+
+  /// Retorna e limpa a mensagem de ação pendente, se houver.
+  static RemoteMessage? consumePendingActionMessage() {
+    final message = _pendingActionMessage;
+    _pendingActionMessage = null;
+    return message;
+  }
 
   FirebaseApp? _currentApp;
   FirebaseMessaging? _messaging;
   FirebaseAnalytics? _analytics;
   ClientType? _currentClientType;
+  bool _pushHandlersConfigured = false;
+  bool _tokenRefreshListenerConfigured = false;
 
   FirebaseApp? get currentApp => _currentApp;
   FirebaseMessaging? get messaging => _messaging;
@@ -98,8 +111,9 @@ class FirebaseService {
       // Inicializar Firebase Analytics
       _analytics = FirebaseAnalytics.instance;
 
-      // Configurar notificações push
-      await _setupPushNotifications();
+      // Configurar handlers de notificações sem solicitar permissão ainda.
+      // A permissão será solicitada explicitamente no fluxo de UI.
+      _setupPushNotificationHandlers();
 
       if (kDebugMode) {
         print('🔥 Serviços Firebase inicializados');
@@ -111,20 +125,38 @@ class FirebaseService {
     }
   }
 
-  Future<void> _setupPushNotifications() async {
+  void _setupPushNotificationHandlers() {
+    if (_messaging == null) return;
+
+    if (_pushHandlersConfigured) return;
+    _pushHandlersConfigured = true;
+
+    FirebaseMessaging.onMessage.listen(_handleForegroundMessage);
+    FirebaseMessaging.onMessageOpenedApp.listen(_handleMessageOpenedApp);
+
+    if (kDebugMode) {
+      print('✅ Handlers de notificações push configurados');
+    }
+  }
+
+  Future<void> requestNotificationPermission() async {
     if (_messaging == null) return;
 
     try {
-      // Solicitar permissão para notificações
-      NotificationSettings settings = await _messaging!.requestPermission(
-        alert: true,
-        announcement: false,
-        badge: true,
-        carPlay: false,
-        criticalAlert: false,
-        provisional: false,
-        sound: true,
-      );
+      // Verificar status atual antes de solicitar, para evitar prompts desnecessários.
+      NotificationSettings settings = await _messaging!.getNotificationSettings();
+
+      if (settings.authorizationStatus == AuthorizationStatus.notDetermined) {
+        settings = await _messaging!.requestPermission(
+          alert: true,
+          announcement: false,
+          badge: true,
+          carPlay: false,
+          criticalAlert: false,
+          provisional: false,
+          sound: true,
+        );
+      }
 
       if (kDebugMode) {
         print('🔔 Permissão de notificação: ${settings.authorizationStatus}');
@@ -132,13 +164,6 @@ class FirebaseService {
 
       // Configurar APNS token no iOS
       if (Platform.isIOS) {
-        // Aguardar o token APNS estar disponível
-        _messaging!.onTokenRefresh.listen((fcmToken) {
-          if (kDebugMode) {
-            print('🔄 FCM Token atualizado: $fcmToken');
-          }
-        });
-
         // Tentar obter o token APNS com retry
         String? apnsToken;
         try {
@@ -172,19 +197,18 @@ class FirebaseService {
       }
 
       // Configurar listener para atualização de token
-      _messaging!.onTokenRefresh.listen((newToken) async {
-        await _saveFCMToken(newToken);
-        if (kDebugMode) {
-          print('🔄 FCM Token atualizado e salvo: $newToken');
-        }
-      });
-
-      // Configurar handlers de mensagens
-      FirebaseMessaging.onMessage.listen(_handleForegroundMessage);
-      FirebaseMessaging.onMessageOpenedApp.listen(_handleMessageOpenedApp);
+      if (!_tokenRefreshListenerConfigured) {
+        _tokenRefreshListenerConfigured = true;
+        _messaging!.onTokenRefresh.listen((newToken) async {
+          await _saveFCMToken(newToken);
+          if (kDebugMode) {
+            print('🔄 FCM Token atualizado e salvo: $newToken');
+          }
+        });
+      }
 
       if (kDebugMode) {
-        print('✅ Notificações push configuradas com sucesso');
+        print('✅ Permissão e token de notificações processados com sucesso');
       }
     } catch (e) {
       if (kDebugMode) {
@@ -201,7 +225,15 @@ class FirebaseService {
       print('📱 Dados da mensagem: ${message.data}');
     }
     if (_hasNotificationAction(message)) {
-      _notificationActionController.add(message);
+      // Se não há listeners, guarda a mensagem como pendente
+      if (!_notificationActionController.hasListener) {
+        if (kDebugMode) {
+          print('⏳ Nenhum listener ativo, guardando mensagem como pendente');
+        }
+        _pendingActionMessage = message;
+      } else {
+        _notificationActionController.add(message);
+      }
     }
   }
 
@@ -211,17 +243,29 @@ class FirebaseService {
       print('🚀 Dados da mensagem: ${message.data}');
     }
     if (_hasNotificationAction(message)) {
-      _notificationActionController.add(message);
+      // Se não há listeners, guarda a mensagem como pendente
+      if (!_notificationActionController.hasListener) {
+        if (kDebugMode) {
+          print('⏳ Nenhum listener ativo, guardando mensagem como pendente');
+        }
+        _pendingActionMessage = message;
+      } else {
+        _notificationActionController.add(message);
+      }
     }
   }
 
-  /// Retorna true se a mensagem FCM contiver redirect_cortesias: true
-  /// ou redirect_link com uma URL.
+  /// Retorna true se a mensagem FCM contiver redirect_cortesias,
+  /// redirect_carteirinhas ou redirect_link com uma URL.
   static bool _hasNotificationAction(RemoteMessage message) {
-    final cortesias = message.data['redirect_cortesias'];
-    if (cortesias == 'true' || cortesias == true) return true;
+    if (_isRedirectFlag(message.data['redirect_carteirinhas'])) return true;
+    if (_isRedirectFlag(message.data['redirect_cortesias'])) return true;
     final link = message.data['redirect_link'];
     return link != null && (link as String).isNotEmpty;
+  }
+
+  static bool _isRedirectFlag(dynamic value) {
+    return value == true || value == 'true' || value == '1' || value == 1;
   }
 
   // Salvar FCM Token no SharedPreferences

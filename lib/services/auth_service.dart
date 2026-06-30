@@ -380,6 +380,122 @@ class AuthService {
     }
   }
 
+  Future<CarteirinhasResumoResult> getCarteirinhasResumo(
+    ClientType clientType,
+    String tituloId, {
+    bool incluirParticipantes = false,
+  }) async {
+    final response = await _apiService.getCarteirinhasResumo(
+      clientType,
+      tituloId,
+      incluirParticipantes: incluirParticipantes,
+    );
+    if (response.success && response.data != null) {
+      return CarteirinhasResumoResult.success(response.data!);
+    }
+    if (response.statusCode == 0) {
+      return CarteirinhasResumoResult.connectionError(
+        'Falha de conexão. Verifique sua internet e tente novamente.',
+      );
+    }
+    return CarteirinhasResumoResult.error(
+      response.error ?? 'Erro ao carregar carteirinhas',
+    );
+  }
+
+  Future<CarteirinhasResumoResult> getVendaCarteirinhaPendente(
+    ClientType clientType,
+    String tituloId,
+  ) async {
+    final response = await _apiService.getVendaCarteirinhaPendente(
+      clientType,
+      tituloId,
+    );
+    if (response.success && response.data != null) {
+      return CarteirinhasResumoResult.success(response.data!);
+    }
+    if (response.statusCode == 0) {
+      return CarteirinhasResumoResult.connectionError(
+        'Falha de conexão. Verifique sua internet e tente novamente.',
+      );
+    }
+    return CarteirinhasResumoResult.error(
+      response.error ?? 'Erro ao buscar venda pendente',
+    );
+  }
+
+  Future<CarteirinhasResumoResult> simularVendaCarteirinhas(
+    ClientType clientType,
+    String tituloId,
+    List<Map<String, dynamic>> operacoes,
+  ) async {
+    final response = await _apiService.simularVendaCarteirinhas(
+      clientType,
+      tituloId,
+      operacoes,
+    );
+    if (response.success && response.data != null) {
+      return CarteirinhasResumoResult.success(response.data!);
+    }
+    return CarteirinhasResumoResult.error(
+      response.error ?? 'Erro ao simular venda',
+    );
+  }
+
+  Future<CarteirinhasResumoResult> criarVendaCarteirinhas(
+    ClientType clientType,
+    String tituloId,
+    List<Map<String, dynamic>> operacoes,
+  ) async {
+    final response = await _apiService.criarVendaCarteirinhas(
+      clientType,
+      tituloId,
+      operacoes,
+    );
+    if (response.success && response.data != null) {
+      return CarteirinhasResumoResult.success(response.data!);
+    }
+    return CarteirinhasResumoResult.error(
+      response.error ?? 'Erro ao gerar PIX',
+    );
+  }
+
+  Future<VerificarCarteirinhaVendaResultWrapper> verificarVendaCarteirinha(
+    ClientType clientType,
+    String tituloId,
+    String vendaId,
+  ) async {
+    final response = await _apiService.verificarVendaCarteirinha(
+      clientType,
+      tituloId,
+      vendaId,
+    );
+    if (response.success && response.data != null) {
+      return VerificarCarteirinhaVendaResultWrapper.success(response.data!);
+    }
+    return VerificarCarteirinhaVendaResultWrapper.error(
+      response.error ?? 'Erro ao verificar pagamento',
+    );
+  }
+
+  Future<CarteirinhasResumoResult> cancelarVendaCarteirinha(
+    ClientType clientType,
+    String tituloId,
+    String vendaId,
+  ) async {
+    final response = await _apiService.cancelarVendaCarteirinha(
+      clientType,
+      tituloId,
+      vendaId,
+    );
+    if (response.success && response.data != null) {
+      return CarteirinhasResumoResult.success(response.data!);
+    }
+    return CarteirinhasResumoResult.error(
+      response.error ?? 'Erro ao cancelar pedido',
+    );
+  }
+
   // Cria negociação de cobranças
   Future<NegociacaoResult> criarNegociacaoCobrancas(
     ClientType clientType,
@@ -1152,6 +1268,61 @@ class CobrancasResult {
       success: false,
       error: error,
       isConnectionError: true,
+    );
+  }
+}
+
+class CarteirinhasResumoResult {
+  final bool success;
+  final Map<String, dynamic>? data;
+  final String? error;
+  final bool isConnectionError;
+
+  CarteirinhasResumoResult._({
+    required this.success,
+    this.data,
+    this.error,
+    this.isConnectionError = false,
+  });
+
+  factory CarteirinhasResumoResult.success(Map<String, dynamic> data) {
+    return CarteirinhasResumoResult._(success: true, data: data);
+  }
+
+  factory CarteirinhasResumoResult.error(String error) {
+    return CarteirinhasResumoResult._(success: false, error: error);
+  }
+
+  factory CarteirinhasResumoResult.connectionError(String error) {
+    return CarteirinhasResumoResult._(
+      success: false,
+      error: error,
+      isConnectionError: true,
+    );
+  }
+}
+
+class VerificarCarteirinhaVendaResultWrapper {
+  final bool success;
+  final Map<String, dynamic>? data;
+  final String? error;
+
+  VerificarCarteirinhaVendaResultWrapper._({
+    required this.success,
+    this.data,
+    this.error,
+  });
+
+  factory VerificarCarteirinhaVendaResultWrapper.success(
+    Map<String, dynamic> data,
+  ) {
+    return VerificarCarteirinhaVendaResultWrapper._(success: true, data: data);
+  }
+
+  factory VerificarCarteirinhaVendaResultWrapper.error(String error) {
+    return VerificarCarteirinhaVendaResultWrapper._(
+      success: false,
+      error: error,
     );
   }
 }

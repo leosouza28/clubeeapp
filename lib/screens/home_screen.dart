@@ -7,7 +7,9 @@ import '../services/api_service.dart';
 import '../services/app_config_service.dart';
 import '../services/auth_service.dart';
 import '../services/deep_link_service.dart';
+import '../services/firebase_service.dart';
 import '../services/logging_service.dart';
+import '../services/tracking_service.dart';
 import '../models/calendario_model.dart';
 import '../models/titulo_model.dart';
 import 'account_screen.dart';
@@ -41,6 +43,18 @@ class _HomeScreenState extends State<HomeScreen> {
     _carregarCalendario();
     _verificarAcesso();
     _initializeDeepLinks();
+    _initializePermissionsFlow();
+  }
+
+  void _initializePermissionsFlow() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _requestStartupPermissions();
+    });
+  }
+
+  Future<void> _requestStartupPermissions() async {
+    await TrackingService.instance.requestTrackingAuthorization();
+    await FirebaseService.instance.requestNotificationPermission();
   }
 
   void _initializeDeepLinks() {

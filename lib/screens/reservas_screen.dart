@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'dart:convert';
 import 'package:share_plus/share_plus.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import '../models/cortesia_model.dart';
@@ -33,6 +34,9 @@ class _ReservasScreenState extends State<ReservasScreen>
   String? _erro;
   bool _hashJaProcessado =
       false; // Controla se o hash automático já foi processado
+
+  // Ative/desative logs detalhados de parsing das reservas.
+  static const bool _debugReservaParsing = true;
 
   @override
   void initState() {
@@ -73,30 +77,19 @@ class _ReservasScreenState extends State<ReservasScreen>
             try {
               final item = resultado.data![i];
 
-              // Verificar campos críticos
-              final usuario = item['usuario'];
-              if (usuario != null) {}
-
-              final titulo = item['titulo'];
-              if (titulo != null && titulo['usuario'] != null) {
-                final usuarioTitulo = titulo['usuario'];
-              }
-
-              final retiradas = item['retiradas'];
-              if (retiradas != null && (retiradas as List).isNotEmpty) {
-                for (var j = 0; j < (retiradas as List).length; j++) {
-                  final ret = (retiradas as List)[j];
-                  if (ret['usuario_sistema'] != null) {
-                    final usuarioSist = ret['usuario_sistema'];
-                  }
-                }
-              }
+              _logNullFields(index: i, item: item);
 
               // print('  ⏳ Criando modelo...');
               final cortesia = CortesiaModel.fromJson(item);
               cortesias.add(cortesia);
               // print('  ✅ OK');
             } catch (e, stackTrace) {
+              _logReservaDebug(
+                index: i,
+                item: resultado.data![i],
+                error: e,
+                stackTrace: stackTrace,
+              );
               rethrow;
             }
           }
@@ -137,6 +130,132 @@ class _ReservasScreenState extends State<ReservasScreen>
 
     // Após carregar as cortesias, verificar se deve abrir automaticamente alguma
     _verificarHashParaAbrir();
+  }
+
+  void _logNullFields({
+    required int index,
+    required Map<String, dynamic> item,
+  }) {
+    if (!_debugReservaParsing) return;
+
+    final nullPaths = <String>[];
+    _collectNullPaths(item, '', nullPaths);
+
+    if (nullPaths.isEmpty) return;
+
+    debugPrint('---------------- RESERVA DEBUG ----------------');
+    debugPrint('Reserva index=$index contém campos nulos.');
+    for (final path in nullPaths) {
+      debugPrint('NULL -> $path');
+    }
+    debugPrint('-----------------------------------------------');
+  }
+
+  void _collectNullPaths(dynamic value, String path, List<String> nullPaths) {
+    if (value is Map) {
+      for (final entry in value.entries) {
+        final key = entry.key.toString();
+        final nextPath = path.isEmpty ? key : '$path.$key';
+        if (entry.value == null) {
+          nullPaths.add(nextPath);
+        } else {
+          _collectNullPaths(entry.value, nextPath, nullPaths);
+        }
+      }
+      return;
+    }
+
+    if (value is List) {
+      for (var i = 0; i < value.length; i++) {
+        final nextPath = '$path[$i]';
+        if (value[i] == null) {
+          nullPaths.add(nextPath);
+        } else {
+          _collectNullPaths(value[i], nextPath, nullPaths);
+        }
+      }
+    }
+  }
+
+  void _logReservaDebug({
+    required int index,
+    required Map<String, dynamic> item,
+    Object? error,
+    StackTrace? stackTrace,
+  }) {
+    if (!_debugReservaParsing) return;
+
+    debugPrint('================ RESERVA PARSE ERROR ================');
+    debugPrint('Reserva index=$index');
+
+    if (error != null) {
+      debugPrint('Erro: $error');
+
+      final fieldFromError = _extractFieldFromError(error.toString());
+      if (fieldFromError != null) {
+        debugPrint('Campo detectado no erro: $fieldFromError');
+        final candidates = <String>[];
+        _collectPathsByFieldName(item, '', fieldFromError, candidates);
+        if (candidates.isNotEmpty) {
+          for (final candidate in candidates) {
+            debugPrint('Caminho candidato: $candidate');
+          }
+        }
+      }
+    }
+
+    if (stackTrace != null) {
+      final linhas = stackTrace.toString().split('\n').take(8).join('\n');
+      debugPrint('Stack (top 8):\n$linhas');
+    }
+
+    try {
+      final preview = const JsonEncoder.withIndent('  ').convert(item);
+      debugPrint('Payload da reserva:\n$preview');
+    } catch (_) {
+      debugPrint('Payload da reserva (toString): $item');
+    }
+
+    debugPrint('=====================================================');
+  }
+
+  String? _extractFieldFromError(String errorMessage) {
+    final matchSetting = RegExp(r"setting '([^']+)'").firstMatch(errorMessage);
+    if (matchSetting != null) {
+      return matchSetting.group(1);
+    }
+
+    final matchQuoted = RegExp(r'campo "([^"]+)"').firstMatch(errorMessage);
+    if (matchQuoted != null) {
+      return matchQuoted.group(1);
+    }
+
+    return null;
+  }
+
+  void _collectPathsByFieldName(
+    dynamic value,
+    String path,
+    String field,
+    List<String> output,
+  ) {
+    if (value is Map) {
+      for (final entry in value.entries) {
+        final key = entry.key.toString();
+        final nextPath = path.isEmpty ? key : '$path.$key';
+        if (key == field) {
+          output.add(nextPath);
+        }
+        _collectPathsByFieldName(entry.value, nextPath, field, output);
+      }
+      return;
+    }
+
+    if (value is List) {
+      for (var i = 0; i < value.length; i++) {
+        _collectPathsByFieldName(value[i], '$path[$i]', field, output);
+      }
+    }
   }
 
   void _verificarHashParaAbrir() {

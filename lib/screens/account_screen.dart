@@ -1228,92 +1228,101 @@ class _AccountScreenState extends State<AccountScreen> {
         .where((t) => _tagsSelecionadas.contains(t.descricao))
         .toList();
 
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(
-          Icons.interests_rounded,
-          color: Theme.of(context).primaryColor,
-          size: 18,
-        ),
-        const SizedBox(width: 6),
-        Text(
-          'Interesses:',
-          style: TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-            color: Theme.of(context).primaryColor,
-          ),
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: _isLoadingTags
-              ? SizedBox(
-                  height: 16,
-                  width: 16,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: Theme.of(context).primaryColor,
-                  ),
-                )
-              : tagsSelecionadasObj.isEmpty
-                  ? GestureDetector(
-                      onTap: _todasTags.isEmpty
-                          ? null
-                          : _mostrarModalSugestaoTags,
-                      child: Text(
-                        'Definir interesses',
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: Theme.of(context)
-                              .primaryColor
-                              .withValues(alpha: 0.7),
-                          decoration: TextDecoration.underline,
-                        ),
-                      ),
-                    )
-                  : Wrap(
-                      spacing: 4,
-                      runSpacing: 4,
-                      children: tagsSelecionadasObj
-                          .map(
-                            (tag) => Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 3,
-                              ),
-                              decoration: BoxDecoration(
-                                color: Theme.of(context)
-                                    .primaryColor
-                                    .withValues(alpha: 0.1),
-                                borderRadius: BorderRadius.circular(20),
-                                border: Border.all(
-                                  color: Theme.of(context)
-                                      .primaryColor
-                                      .withValues(alpha: 0.3),
-                                ),
-                              ),
-                              child: Text(
-                                tag.descricao,
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  color: Theme.of(context).primaryColor,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ),
-                          )
-                          .toList(),
+        Row(
+          children: [
+            Icon(
+              Icons.interests_rounded,
+              color: Theme.of(context).primaryColor,
+              size: 18,
+            ),
+            const SizedBox(width: 6),
+            Text(
+              'Interesses',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: Theme.of(context).primaryColor,
+              ),
+            ),
+            const Spacer(),
+            if (!_isLoadingTags)
+              GestureDetector(
+                onTap: _todasTags.isEmpty ? null : _mostrarModalSugestaoTags,
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.edit_outlined,
+                      size: 14,
+                      color: Colors.grey.shade500,
                     ),
+                    const SizedBox(width: 4),
+                    Text(
+                      'Editar',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey.shade500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+          ],
         ),
-        if (!_isLoadingTags)
+        const SizedBox(height: 10),
+        if (_isLoadingTags)
+          const SizedBox(
+            height: 20,
+            width: 20,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          )
+        else if (tagsSelecionadasObj.isEmpty)
           GestureDetector(
             onTap: _todasTags.isEmpty ? null : _mostrarModalSugestaoTags,
-            child: Icon(
-              Icons.edit_outlined,
-              size: 16,
-              color: Colors.grey.shade400,
+            child: Text(
+              'Definir interesses',
+              style: TextStyle(
+                fontSize: 13,
+                color: Theme.of(context).primaryColor.withValues(alpha: 0.7),
+                decoration: TextDecoration.underline,
+              ),
             ),
+          )
+        else
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: tagsSelecionadasObj
+                .map(
+                  (tag) => Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context)
+                          .primaryColor
+                          .withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: Theme.of(context)
+                            .primaryColor
+                            .withValues(alpha: 0.3),
+                      ),
+                    ),
+                    child: Text(
+                      tag.descricao,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Theme.of(context).primaryColor,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                )
+                .toList(),
           ),
       ],
     );
@@ -1905,18 +1914,18 @@ class _AccountScreenState extends State<AccountScreen> {
                         spacing: 8,
                         runSpacing: 8,
                         children: _todasTags.map((tag) {
-                          final selecionado = selecaoTemp.contains(tag.id);
+                          final selecionado = selecaoTemp.contains(tag.descricao);
                           return FilterChip(
                             label: Text(tag.descricao),
                             selected: selecionado,
+                            showCheckmark: false,
                             selectedColor: Theme.of(
                               context,
                             ).primaryColor.withValues(alpha: 0.15),
-                            checkmarkColor: Theme.of(context).primaryColor,
                             labelStyle: TextStyle(
                               color: selecionado
                                   ? Theme.of(context).primaryColor
-                                  : Colors.black87,
+                                  : Colors.black87.withValues(alpha: 0.5),
                               fontWeight: selecionado
                                   ? FontWeight.w600
                                   : FontWeight.normal,

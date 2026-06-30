@@ -53,7 +53,7 @@ class ApiService {
     final config = _clientConfigs[clientType]!;
     final String apiUrl;
     if (kDebugMode) {
-      apiUrl = 'http://192.168.1.140:${config['port']}';
+      apiUrl = 'http://192.168.68.118:${config['port']}';
     } else {
       apiUrl = config['apiUrl'];
     }
@@ -913,6 +913,142 @@ class ApiService {
           response.statusCode ?? 0,
         );
       }
+    } catch (e) {
+      return ApiResponse.error('Erro inesperado: $e', 0);
+    }
+  }
+
+  Future<ApiResponse<Map<String, dynamic>>> getCarteirinhasResumo(
+    ClientType clientType,
+    String tituloId, {
+    bool incluirParticipantes = false,
+  }) async {
+    try {
+      final query = incluirParticipantes ? '?participantes=1' : '';
+      final response = await get(
+        clientType,
+        '/v1/meus-titulos/$tituloId/carteirinhas$query',
+      );
+      if (response.success && response.data != null) {
+        return ApiResponse.success(response.data!);
+      }
+      return ApiResponse.error(
+        response.error ?? 'Erro ao carregar carteirinhas',
+        response.statusCode ?? 0,
+      );
+    } catch (e) {
+      return ApiResponse.error('Erro inesperado: $e', 0);
+    }
+  }
+
+  Future<ApiResponse<Map<String, dynamic>>> getVendaCarteirinhaPendente(
+    ClientType clientType,
+    String tituloId,
+  ) async {
+    try {
+      final response = await get(
+        clientType,
+        '/v1/meus-titulos/$tituloId/carteirinhas/venda-pendente',
+      );
+      if (response.success && response.data != null) {
+        return ApiResponse.success(response.data!);
+      }
+      return ApiResponse.error(
+        response.error ?? 'Erro ao buscar venda pendente',
+        response.statusCode ?? 0,
+      );
+    } catch (e) {
+      return ApiResponse.error('Erro inesperado: $e', 0);
+    }
+  }
+
+  Future<ApiResponse<Map<String, dynamic>>> simularVendaCarteirinhas(
+    ClientType clientType,
+    String tituloId,
+    List<Map<String, dynamic>> operacoes,
+  ) async {
+    try {
+      final response = await post(
+        clientType,
+        '/v1/meus-titulos/$tituloId/carteirinhas/simular',
+        {'operacoes': operacoes},
+      );
+      if (response.success && response.data != null) {
+        return ApiResponse.success(response.data!);
+      }
+      return ApiResponse.error(
+        response.error ?? 'Erro ao simular venda de carteirinhas',
+        response.statusCode ?? 0,
+      );
+    } catch (e) {
+      return ApiResponse.error('Erro inesperado: $e', 0);
+    }
+  }
+
+  Future<ApiResponse<Map<String, dynamic>>> criarVendaCarteirinhas(
+    ClientType clientType,
+    String tituloId,
+    List<Map<String, dynamic>> operacoes,
+  ) async {
+    try {
+      final response = await post(
+        clientType,
+        '/v1/meus-titulos/$tituloId/carteirinhas/venda',
+        {'operacoes': operacoes},
+      );
+      if (response.success && response.data != null) {
+        return ApiResponse.success(response.data!);
+      }
+      return ApiResponse.error(
+        response.error ?? 'Erro ao gerar PIX de carteirinhas',
+        response.statusCode ?? 0,
+      );
+    } catch (e) {
+      return ApiResponse.error('Erro inesperado: $e', 0);
+    }
+  }
+
+  Future<ApiResponse<Map<String, dynamic>>> verificarVendaCarteirinha(
+    ClientType clientType,
+    String tituloId,
+    String vendaId,
+  ) async {
+    try {
+      final response = await post(
+        clientType,
+        '/v1/meus-titulos/$tituloId/carteirinhas/venda-pendente/verificar',
+        {'venda_id': vendaId},
+      );
+      if (response.success && response.data != null) {
+        return ApiResponse.success(response.data!);
+      }
+      return ApiResponse.error(
+        response.error ?? 'Erro ao verificar pagamento',
+        response.statusCode ?? 0,
+      );
+    } catch (e) {
+      return ApiResponse.error('Erro inesperado: $e', 0);
+    }
+  }
+
+  Future<ApiResponse<Map<String, dynamic>>> cancelarVendaCarteirinha(
+    ClientType clientType,
+    String tituloId,
+    String vendaId,
+  ) async {
+    try {
+      final response = await post(
+        clientType,
+        '/v1/meus-titulos/$tituloId/carteirinhas/venda-pendente/cancelar',
+        {'venda_id': vendaId},
+      );
+      if (response.success && response.data != null) {
+        return ApiResponse.success(response.data!);
+      }
+      return ApiResponse.error(
+        response.error ?? 'Erro ao cancelar pedido',
+        response.statusCode ?? 0,
+      );
     } catch (e) {
       return ApiResponse.error('Erro inesperado: $e', 0);
     }

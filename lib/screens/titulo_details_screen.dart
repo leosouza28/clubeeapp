@@ -3,9 +3,12 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:image_cropper/image_cropper.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../models/carteirinha_venda_model.dart';
 import '../models/titulo_details_model.dart';
 import '../services/client_service.dart';
 import '../services/auth_service.dart';
+import '../utils/formatters.dart';
+import '../widgets/carteirinhas_venda_sheet.dart';
 import '../widgets/pdf_viewer_modal.dart';
 import 'atribuir_dependente_screen.dart';
 import 'nova_reserva_screen.dart';
@@ -15,11 +18,13 @@ import 'cobrancas_screen.dart';
 class TituloDetailsScreen extends StatefulWidget {
   final String tituloId;
   final String nomeSerie;
+  final bool abrirCarteirinhasAutomaticamente;
 
   const TituloDetailsScreen({
     super.key,
     required this.tituloId,
     required this.nomeSerie,
+    this.abrirCarteirinhasAutomaticamente = false,
   });
 
   @override
@@ -28,7 +33,10 @@ class TituloDetailsScreen extends StatefulWidget {
 
 class _TituloDetailsScreenState extends State<TituloDetailsScreen> {
   TituloDetailsModel? _tituloDetails;
+  CarteirinhasResumoModel? _carteirinhasResumo;
   bool _isLoading = true;
+  bool _isLoadingCarteirinhas = false;
+  bool _carteirinhasAutoAberto = false;
   String? _error;
 
   @override
@@ -37,11 +45,67 @@ class _TituloDetailsScreenState extends State<TituloDetailsScreen> {
     _loadTituloDetails();
   }
 
-  Future<void> _loadTituloDetails() async {
-    setState(() {
-      _isLoading = true;
-      _error = null;
-    });
+  Future<void> _loadCarteirinhasResumo({bool incluirParticipantes = false}) async {
+    setState(() => _isLoadingCarteirinhas = true);
+    try {
+      final clientService = ClientService.instance;
+      final authService = await AuthService.getInstance();
+      final clientType = clientService.currentConfig.clientType;
+
+      final results = await Future.wait([
+        authService.getCarteirinhasResumo(
+          clientType,
+          widget.tituloId,
+          incluirParticipantes: incluirParticipantes,
+        ),
+        authService.getVendaCarteirinhaPendente(clientType, widget.tituloId),
+      ]);
+
+      final resumoResult = results[0];
+      final pendenteResult = results[1];
+
+      if (mounted && resumoResult.success && resumoResult.data != null) {
+        final data = Map<String, dynamic>.from(resumoResult.data!);
+
+        if (pendenteResult.success && pendenteResult.data != null) {
+          final vendaPendente = pendenteResult.data!['venda_pendente'];
+          if (vendaPendente != null) {
+            data['venda_pendente'] = vendaPendente;
+          } else {
+            data['venda_pendente'] = null;
+          }
+        }
+
+        setState(() {
+          _carteirinhasResumo = CarteirinhasResumoModel.fromJson(data);
+          _isLoadingCarteirinhas = false;
+        });
+        _maybeAbrirCarteirinhasAutomaticamente();
+      } else if (mounted) {
+        setState(() => _isLoadingCarteirinhas = false);
+      }
+    } catch (_) {
+      if (mounted) setState(() => _isLoadingCarteirinhas = false);
+    }
+  }
+
+  Future<void> _onCarteirinhasUpdated() async {
+    await Future.wait([
+      _loadCarteirinhasResumo(),
+      _loadTituloDetails(showLoading: false, skipCarteirinhas: true),
+    ]);
+  }
+
+  Future<void> _loadTituloDetails({
+    bool showLoading = true,
+    bool skipCarteirinhas = false,
+  }) async {
+    if (showLoading) {
+      setState(() {
+        _isLoading = true;
+        _error = null;
+      });
+    }
 
     try {
       final clientService = ClientService.instance;
@@ -53,10 +117,16 @@ class _TituloDetailsScreenState extends State<TituloDetailsScreen> {
       );
 
       if (result.success && result.data != null) {
+        final details = TituloDetailsModel.fromJson(result.data!);
         setState(() {
-          _tituloDetails = TituloDetailsModel.fromJson(result.data!);
+          _tituloDetails = details;
           _isLoading = false;
         });
+
+        if (!skipCarteirinhas) {
+          setState(() => _isLoadingCarteirinhas = true);
+          _loadCarteirinhasResumo();
+        }
       } else if (result.isConnectionError) {
         setState(() {
           _error = 'Falha de conexão: ${result.error}';
@@ -143,9 +213,26 @@ class _TituloDetailsScreenState extends State<TituloDetailsScreen> {
 
     // Se título não estiver ativo, mostrar apenas cobranças
     final isTituloAtivo = _isTituloAtivo();
+    final resumo = _carteirinhasResumo;
+    final temCarteirinhaPendente = resumo?.temPendencia ?? false;
+    final temCarteirinhasElegiveis = resumo?.temElegiveis ?? false;
+    final carteirinhasEmDia = isTituloAtivo &&
+        !_isLoadingCarteirinhas &&
+        resumo != null &&
+        !temCarteirinhaPendente &&
+        !temCarteirinhasElegiveis;
+    final showCarteirinhasTopo = (isTituloAtivo || temCarteirinhaPendente) &&
+        (_isLoadingCarteirinhas ||
+            temCarteirinhaPendente ||
+            temCarteirinhasElegiveis);
 
     return RefreshIndicator(
-      onRefresh: _loadTituloDetails,
+      onRefresh: () async {
+        await Future.wait([
+          _loadTituloDetails(showLoading: false, skipCarteirinhas: true),
+          _loadCarteirinhasResumo(),
+        ]);
+      },
       child: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -164,6 +251,11 @@ class _TituloDetailsScreenState extends State<TituloDetailsScreen> {
             _buildContratoDigitalSection(),
             const SizedBox(height: 16),
 
+            if (showCarteirinhasTopo) ...[
+              _buildMinhasCarteirinhasSection(),
+              const SizedBox(height: 16),
+            ],
+
             // Cobranças sempre visível
             _buildCobrancasSection(),
             const SizedBox(height: 16),
@@ -181,6 +273,11 @@ class _TituloDetailsScreenState extends State<TituloDetailsScreen> {
               _buildCortesiasSection(),
               const SizedBox(height: 16),
               _buildVendedorSection(),
+              const SizedBox(height: 16),
+            ],
+
+            if (carteirinhasEmDia) ...[
+              _buildMinhasCarteirinhasEmDiaSection(),
               const SizedBox(height: 16),
             ],
           ],
@@ -1365,6 +1462,442 @@ class _TituloDetailsScreenState extends State<TituloDetailsScreen> {
         ),
       ),
     );
+  }
+
+  Widget _buildMinhasCarteirinhasSection() {
+    final resumo = _carteirinhasResumo;
+    final temPendencia = resumo?.temPendencia ?? false;
+    final temElegiveis = resumo?.temElegiveis ?? false;
+    final qtdEmissao = resumo?.qtdEmissao ?? 0;
+    final qtdRenovacao = resumo?.qtdRenovacao ?? 0;
+
+    return Card(
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: _isLoadingCarteirinhas
+            ? null
+            : () => _abrirMinhasCarteirinhas(),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.badge, color: Theme.of(context).primaryColor),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Minhas Carteirinhas',
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                    ),
+                  ),
+                  if (temPendencia)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.orange.shade100,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        'Pagamento pendente',
+                        style: TextStyle(
+                          color: Colors.orange.shade800,
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              if (temPendencia) ...[
+                Text(
+                  'Continue o pagamento da sua carteirinha.',
+                  style: TextStyle(
+                    color: Colors.orange.shade800,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    height: 1.4,
+                  ),
+                ),
+                const SizedBox(height: 8),
+              ] else ...[
+                Text(
+                  'Garanta seu acesso ao parque, emita ou renove as suas carteirinhas através do aplicativo de forma rápida e segura.',
+                  style: TextStyle(color: Colors.grey[700], fontSize: 14, height: 1.4),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Formas de pagamento aceita: PIX.',
+                  style: TextStyle(color: Colors.grey[600], fontSize: 13),
+                ),
+                Text(
+                  'Aprovado em instantes.',
+                  style: TextStyle(
+                    color: Colors.green.shade700,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+              const SizedBox(height: 12),
+              if (_isLoadingCarteirinhas)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: Row(
+                    children: [
+                      SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Theme.of(context).primaryColor,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Text(
+                        'Carregando carteirinhas...',
+                        style: TextStyle(color: Colors.grey[600], fontSize: 14),
+                      ),
+                    ],
+                  ),
+                )
+              else if (resumo == null)
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Não foi possível carregar as informações de carteirinha.',
+                      style: TextStyle(color: Colors.grey[600], fontSize: 14),
+                    ),
+                    const SizedBox(height: 8),
+                    TextButton.icon(
+                      onPressed: _loadCarteirinhasResumo,
+                      icon: const Icon(Icons.refresh, size: 18),
+                      label: const Text('Tentar novamente'),
+                    ),
+                  ],
+                )
+              else ...[
+                if (temPendencia && resumo.vendaPendente != null) ...[
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.orange.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.orange.shade200),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    Formatters.currency(
+                                      resumo.vendaPendente!.valorTotal,
+                                    ),
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 16,
+                                    ),
+                                  ),
+                                  if (resumo.vendaPendente!.expiraEm != null)
+                                    Text(
+                                      resumo.vendaPendente!.expirado
+                                          ? 'PIX expirado — toque para verificar'
+                                          : 'Aguardando pagamento',
+                                      style: TextStyle(
+                                        color: Colors.grey.shade700,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            ),
+                            OutlinedButton.icon(
+                              onPressed: () => _abrirPixPendente(
+                                resumo.vendaPendente!,
+                              ),
+                              icon: const Icon(Icons.pix, size: 18),
+                              label: const Text('Ver PIX'),
+                            ),
+                          ],
+                        ),
+                        if (resumo.vendaPendente!.itens.isNotEmpty) ...[
+                          const SizedBox(height: 8),
+                          ...resumo.vendaPendente!.itens.map(
+                            (item) => Padding(
+                              padding: const EdgeInsets.only(bottom: 4),
+                              child: Text(
+                                '• ${item.clienteNome} — ${item.operacaoLabel}',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey.shade800,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                        const SizedBox(height: 8),
+                        TextButton.icon(
+                          onPressed: () => _cancelarPedidoCarteirinha(
+                            resumo.vendaPendente!,
+                          ),
+                          icon: Icon(Icons.cancel_outlined, size: 18, color: Colors.red.shade700),
+                          label: Text(
+                            'Cancelar pedido',
+                            style: TextStyle(color: Colors.red.shade700),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                ],
+                if (temElegiveis) ...[
+                  Row(
+                    children: [
+                      _buildCarteirinhaResumoChip(
+                        '$qtdEmissao para emitir',
+                        Colors.blue,
+                      ),
+                      const SizedBox(width: 8),
+                      _buildCarteirinhaResumoChip(
+                        '$qtdRenovacao para renovar',
+                        Colors.indigo,
+                      ),
+                    ],
+                  ),
+                  if (!temPendencia) ...[
+                    const SizedBox(height: 12),
+                    Text(
+                      'Toque aqui para escolher quem deseja emitir ou renovar.',
+                      style: TextStyle(
+                        color: Theme.of(context).primaryColor,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ],
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMinhasCarteirinhasEmDiaSection() {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(Icons.check_circle, color: Colors.green.shade700, size: 28),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Minhas Carteirinhas',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Todas suas carteirinhas estão em dia, acesso pelo parque liberado!',
+                    style: TextStyle(
+                      color: Colors.green.shade800,
+                      fontSize: 14,
+                      height: 1.4,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCarteirinhaResumoChip(String label, MaterialColor color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.shade50,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color.shade200),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: color.shade800,
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+
+  Future<void> _abrirMinhasCarteirinhas() async {
+    var resumo = _carteirinhasResumo;
+
+    if (resumo == null) {
+      await _loadCarteirinhasResumo();
+      resumo = _carteirinhasResumo;
+    }
+    if (resumo == null || !mounted) return;
+
+    if (resumo.temPendencia && resumo.vendaPendente != null) {
+      await _abrirPixPendente(resumo.vendaPendente!);
+      return;
+    }
+
+    if (!resumo.temElegiveis) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Nenhum participante elegível para emissão ou renovação.'),
+        ),
+      );
+      return;
+    }
+
+    if (resumo.participantes.isEmpty) {
+      setState(() => _isLoadingCarteirinhas = true);
+      try {
+        final clientService = ClientService.instance;
+        final authService = await AuthService.getInstance();
+        final result = await authService.getCarteirinhasResumo(
+          clientService.currentConfig.clientType,
+          widget.tituloId,
+          incluirParticipantes: true,
+        );
+        if (!mounted) return;
+        if (result.success && result.data != null) {
+          resumo = CarteirinhasResumoModel.fromJson(result.data!);
+          setState(() {
+            _carteirinhasResumo = resumo;
+            _isLoadingCarteirinhas = false;
+          });
+        } else {
+          setState(() => _isLoadingCarteirinhas = false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(result.error ?? 'Erro ao carregar participantes')),
+          );
+          return;
+        }
+      } catch (_) {
+        if (mounted) setState(() => _isLoadingCarteirinhas = false);
+        return;
+      }
+    }
+
+    if (!mounted) return;
+    await showCarteirinhasSelecaoSheet(
+      context: context,
+      tituloId: widget.tituloId,
+      resumo: resumo,
+      onSuccess: _onCarteirinhasUpdated,
+    );
+  }
+
+  void _maybeAbrirCarteirinhasAutomaticamente() {
+    if (!widget.abrirCarteirinhasAutomaticamente || _carteirinhasAutoAberto) {
+      return;
+    }
+    if (_isLoading || _isLoadingCarteirinhas || _carteirinhasResumo == null) {
+      return;
+    }
+
+    _carteirinhasAutoAberto = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _abrirMinhasCarteirinhas();
+    });
+  }
+
+  Future<void> _abrirPixPendente(VendaCarteirinhaPendenteModel venda) async {
+    if (!mounted) return;
+    await showCarteirinhasPixSheet(
+      context: context,
+      tituloId: widget.tituloId,
+      venda: venda,
+      onPaid: _onCarteirinhasUpdated,
+      onCancelled: _onCarteirinhasUpdated,
+    );
+  }
+
+  Future<void> _cancelarPedidoCarteirinha(
+    VendaCarteirinhaPendenteModel venda,
+  ) async {
+    final confirmar = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Cancelar pedido'),
+        content: const Text(
+          'Deseja cancelar este pedido de carteirinha? Você poderá fazer um novo pedido depois.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Voltar'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Cancelar pedido'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmar != true || !mounted) return;
+
+    try {
+      final authService = await AuthService.getInstance();
+      final clientType = ClientService.instance.currentConfig.clientType;
+      final result = await authService.cancelarVendaCarteirinha(
+        clientType,
+        widget.tituloId,
+        venda.vendaId,
+      );
+
+      if (!mounted) return;
+
+      if (result.success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Pedido cancelado com sucesso.')),
+        );
+        await _onCarteirinhasUpdated();
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(result.error ?? 'Erro ao cancelar pedido')),
+        );
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Erro ao cancelar pedido')),
+        );
+      }
+    }
   }
 
   Widget _buildMinhasReservasSection() {

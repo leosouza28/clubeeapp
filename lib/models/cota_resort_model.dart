@@ -117,6 +117,7 @@ class ParcelaModel {
   final double valorLiquido;
   final double valorJurosCalculado;
   final double valorTotalComJuros;
+  final double valorCorrecaoMonetaria;
 
   ParcelaModel({
     required this.identificador,
@@ -137,6 +138,7 @@ class ParcelaModel {
     required this.valorLiquido,
     required this.valorJurosCalculado,
     required this.valorTotalComJuros,
+    required this.valorCorrecaoMonetaria,
   });
 
   factory ParcelaModel.fromJson(Map<String, dynamic> json) {
@@ -159,6 +161,7 @@ class ParcelaModel {
       valorLiquido: (json['ValorLiquido'] ?? 0).toDouble(),
       valorJurosCalculado: (json['_valorJurosCalculado'] ?? 0).toDouble(),
       valorTotalComJuros: (json['_valorTotalComJuros'] ?? 0).toDouble(),
+      valorCorrecaoMonetaria: (json['_valorCorrecaoMonetaria'] ?? 0).toDouble(),
     );
   }
 
@@ -182,6 +185,7 @@ class ParcelaModel {
       'ValorLiquido': valorLiquido,
       '_valorJurosCalculado': valorJurosCalculado,
       '_valorTotalComJuros': valorTotalComJuros,
+      '_valorCorrecaoMonetaria': valorCorrecaoMonetaria,
     };
   }
 

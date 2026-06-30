@@ -38,57 +38,74 @@ class CortesiaModel {
   });
 
   factory CortesiaModel.fromJson(Map<String, dynamic> json) {
+    var currentField = '<inicializacao>';
     try {
       // print('    🔸 Parsing campo: _id');
+      currentField = '_id';
       final id = json['_id'] as String;
 
       // print('    🔸 Parsing campo: hash');
+      currentField = 'hash';
       final hash = json['hash'] as String;
 
       // print('    🔸 Parsing campo: created_at');
+      currentField = 'created_at';
       final createdAt = DateTime.parse(json['created_at'] as String);
 
       // print('    🔸 Parsing campo: data');
+      currentField = 'data';
       final data = DateTime.parse(json['data'] as String);
 
       // print('    🔸 Parsing campo: status');
+      currentField = 'status';
       final status = json['status'] as String;
 
       // print('    🔸 Parsing campo: tipo_cortesia');
+      currentField = 'tipo_cortesia';
       final tipoCortesia = json['tipo_cortesia'] as String;
 
       // print('    🔸 Parsing campo: tipo_usuario_retirada');
+      currentField = 'tipo_usuario_retirada';
       final tipoUsuarioRetirada = json['tipo_usuario_retirada'] as String;
 
       // print('    🔸 Parsing campo: total_cortesias');
+      currentField = 'total_cortesias';
       final totalCortesias = json['total_cortesias'] as int;
 
       // print('    🔸 Parsing campo: total_cortesias_retiradas');
+      currentField = 'total_cortesias_retiradas';
       final totalCortesiasRetiradas = json['total_cortesias_retiradas'] as int;
 
       // print('    🔸 Parsing campo: site_url');
+      currentField = 'site_url';
       final siteUrl = json['site_url'] as String?;
 
       // print('    🔸 Parsing campo: controle_horario');
+      currentField = 'controle_horario';
       final controleHorario = json['controle_horario'] as bool?;
 
       // print('    🔸 Parsing campo: horario_limite');
+      currentField = 'horario_limite';
       final horarioLimite = json['horario_limite'] as String?;
 
       // print('    🔸 Parsing objeto: clube');
+      currentField = 'clube';
       final clube = ClubeModel.fromJson(json['clube'] as Map<String, dynamic>);
 
       // print('    🔸 Parsing objeto: titulo');
+      currentField = 'titulo';
       final titulo = TituloModel.fromJson(
         json['titulo'] as Map<String, dynamic>,
       );
 
       // print('    🔸 Parsing objeto: usuario');
+      currentField = 'usuario';
       final usuario = UsuarioModel.fromJson(
         json['usuario'] as Map<String, dynamic>,
       );
 
       // print('    🔸 Parsing lista: convidados');
+      currentField = 'convidados';
       final convidados =
           (json['convidados'] as List?)
               ?.map(
@@ -98,6 +115,7 @@ class CortesiaModel {
           [];
 
       // print('    🔸 Parsing lista: retiradas');
+      currentField = 'retiradas';
       final retiradas =
           (json['retiradas'] as List?)
               ?.map(
@@ -127,11 +145,13 @@ class CortesiaModel {
         retiradas: retiradas,
       );
     } catch (e, stackTrace) {
-      print('    ❌ ERRO no CortesiaModel.fromJson: $e');
+      print('    ❌ ERRO no CortesiaModel.fromJson (campo: $currentField): $e');
       print(
         '    Stack: ${stackTrace.toString().split('\n').take(2).join('\n')}',
       );
-      rethrow;
+      throw FormatException(
+        'CortesiaModel.fromJson falhou no campo "$currentField": $e',
+      );
     }
   }
 
@@ -249,12 +269,18 @@ class UsuarioModel {
   });
 
   factory UsuarioModel.fromJson(Map<String, dynamic> json) {
+    var currentField = '<inicializacao>';
     try {
+      currentField = '_id';
       final id = json['_id'] as String;
+      currentField = 'cpf_cnpj';
       final cpfCnpj = json['cpf_cnpj'] as String;
+      currentField = 'nome';
       final nome = json['nome'] as String;
+      currentField = 'email';
       final email = json['email'] as String;
       // Se for null, vamos usar string vazia temporariamente
+      currentField = 'numero_telefone_acesso';
       final numeroTelefoneAcesso = json['numero_telefone_acesso'] as String?;
 
       if (numeroTelefoneAcesso == null) {
@@ -268,8 +294,14 @@ class UsuarioModel {
         email: email,
         numeroTelefoneAcesso: numeroTelefoneAcesso,
       );
-    } catch (e) {
-      rethrow;
+    } catch (e, stackTrace) {
+      print('      ❌ ERRO no UsuarioModel.fromJson (campo: $currentField): $e');
+      print(
+        '      Stack: ${stackTrace.toString().split('\n').take(2).join('\n')}',
+      );
+      throw FormatException(
+        'UsuarioModel.fromJson falhou no campo "$currentField": $e',
+      );
     }
   }
 }
@@ -377,10 +409,15 @@ class UsuarioSistemaModel {
   });
 
   factory UsuarioSistemaModel.fromJson(Map<String, dynamic> json) {
+    var currentField = '<inicializacao>';
     try {
+      currentField = '_id';
       final id = json['_id'] as String;
+      currentField = 'cpf_cnpj';
       final cpfCnpj = json['cpf_cnpj'] as String;
+      currentField = 'nome';
       final nome = json['nome'] as String;
+      currentField = 'email';
       final email = json['email'] as String;
 
       return UsuarioSistemaModel(
@@ -389,9 +426,16 @@ class UsuarioSistemaModel {
         nome: nome,
         email: email,
       );
-    } catch (e) {
-      print('          ❌ ERRO no UsuarioSistemaModel.fromJson: $e');
-      rethrow;
+    } catch (e, stackTrace) {
+      print(
+        '          ❌ ERRO no UsuarioSistemaModel.fromJson (campo: $currentField): $e',
+      );
+      print(
+        '          Stack: ${stackTrace.toString().split('\n').take(2).join('\n')}',
+      );
+      throw FormatException(
+        'UsuarioSistemaModel.fromJson falhou no campo "$currentField": $e',
+      );
     }
   }
 }

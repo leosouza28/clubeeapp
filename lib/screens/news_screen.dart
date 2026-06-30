@@ -8,6 +8,7 @@ import '../services/auth_service.dart';
 import '../models/noticia_model.dart';
 import '../models/notificacao_model.dart';
 import '../models/titulo_model.dart';
+import '../widgets/titulos_carteirinhas_redirect_sheet.dart';
 import 'reservas_screen.dart';
 
 class NewsScreen extends StatefulWidget {
@@ -646,7 +647,13 @@ class _NewsScreenState extends State<NewsScreen> {
       elevation: 2,
       child: InkWell(
         onTap: () {
-          if (notificacao.data?['redirect_cortesias'] == true) {
+          if (isNotificationRedirectFlag(
+            notificacao.data?['redirect_carteirinhas'],
+          )) {
+            _navegarParaCarteirinhas();
+          } else if (isNotificationRedirectFlag(
+            notificacao.data?['redirect_cortesias'],
+          )) {
             _navegarParaReservas();
           } else if (notificacao.data?['redirect_link'] != null &&
               (notificacao.data!['redirect_link'] as String).isNotEmpty) {
@@ -752,6 +759,24 @@ class _NewsScreenState extends State<NewsScreen> {
         backgroundColor: Colors.red,
       ),
     );
+  }
+
+  Future<void> _navegarParaCarteirinhas() async {
+    final authService = await AuthService.getInstance();
+    final isAuthenticated = await authService.isAuthenticated();
+
+    if (!isAuthenticated) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Faça login para acessar suas carteirinhas'),
+          ),
+        );
+      }
+      return;
+    }
+
+    if (mounted) showTitulosCarteirinhasRedirectSheet(context);
   }
 
   Future<void> _navegarParaReservas() async {

@@ -15,6 +15,7 @@ import '../services/client_service.dart';
 import '../services/deep_link_service.dart';
 import '../services/firebase_service.dart';
 import '../services/logging_service.dart';
+import '../widgets/titulos_carteirinhas_redirect_sheet.dart';
 
 class MainNavigationScreen extends StatefulWidget {
   const MainNavigationScreen({super.key});
@@ -75,6 +76,17 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
       });
     });
 
+    // Verifica se há mensagem pendente (recebida antes do listener estar ativo)
+    final pendingMessage = FirebaseService.consumePendingActionMessage();
+    if (pendingMessage != null) {
+      _log.info(
+        '🔔 FCM mensagem pendente encontrada: ${pendingMessage.notification?.title} | data: ${pendingMessage.data}',
+      );
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _handleFcmAction(pendingMessage.data);
+      });
+    }
+
     // Trata app iniciado a partir de notificação (estado terminado)
     FirebaseMessaging.instance.getInitialMessage().then((message) {
       if (message != null && _fcmHasNotificationAction(message)) {
@@ -89,8 +101,12 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   }
 
   bool _fcmHasNotificationAction(RemoteMessage message) {
-    final cortesias = message.data['redirect_cortesias'];
-    if (cortesias == 'true' || cortesias == true) return true;
+    if (isNotificationRedirectFlag(message.data['redirect_carteirinhas'])) {
+      return true;
+    }
+    if (isNotificationRedirectFlag(message.data['redirect_cortesias'])) {
+      return true;
+    }
     final link = message.data['redirect_link'];
     return link != null && (link as String).isNotEmpty;
   }
@@ -99,7 +115,13 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     final link = data['redirect_link'];
     if (link != null && (link as String).isNotEmpty) {
       _abrirLink(link);
-    } else {
+      return;
+    }
+    if (isNotificationRedirectFlag(data['redirect_carteirinhas'])) {
+      _navegarParaCarteirinhas();
+      return;
+    }
+    if (isNotificationRedirectFlag(data['redirect_cortesias'])) {
       _navegarParaReservas();
     }
   }
@@ -125,6 +147,24 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
         backgroundColor: Colors.red,
       ),
     );
+  }
+
+  Future<void> _navegarParaCarteirinhas() async {
+    final authService = await AuthService.getInstance();
+    final isAuthenticated = await authService.isAuthenticated();
+
+    if (!isAuthenticated) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Faça login para acessar suas carteirinhas'),
+          ),
+        );
+      }
+      return;
+    }
+
+    if (mounted) showTitulosCarteirinhasRedirectSheet(context);
   }
 
   Future<void> _navegarParaReservas() async {

@@ -874,13 +874,15 @@ class _CotaResortDetailsScreenState extends State<CotaResortDetailsScreen> {
 
     double valorBrutoTotal = 0;
     double valorJurosTotal = 0;
+    double valorCorrecaoTotal = 0;
 
     for (var parcela in parcelasSelecionadasList) {
       valorBrutoTotal += parcela.valorParcela;
       valorJurosTotal += parcela.valorJurosCalculado;
+      valorCorrecaoTotal += parcela.valorCorrecaoMonetaria;
     }
 
-    final valorTotal = valorBrutoTotal + valorJurosTotal;
+    final valorTotal = valorBrutoTotal + valorJurosTotal + valorCorrecaoTotal;
 
     return Container(
       decoration: BoxDecoration(
@@ -932,6 +934,14 @@ class _CotaResortDetailsScreenState extends State<CotaResortDetailsScreen> {
                     Formatters.currency(valorJurosTotal),
                     valueColor: Colors.red,
                   ),
+                  if (valorCorrecaoTotal > 0) ...[
+                    const SizedBox(height: 8),
+                    _buildResumoRow(
+                      'Correção Monetária',
+                      Formatters.currency(valorCorrecaoTotal),
+                      valueColor: Colors.red,
+                    ),
+                  ],
                   const Divider(),
                   const SizedBox(height: 8),
                   _buildResumoRow(
@@ -1061,7 +1071,7 @@ class _CotaResortDetailsScreenState extends State<CotaResortDetailsScreen> {
 
     double valorTotal = 0;
     for (var parcela in parcelasSelecionadasList) {
-      valorTotal += parcela.valorParcela + parcela.valorJurosCalculado;
+      valorTotal += parcela.valorParcela + parcela.valorJurosCalculado + parcela.valorCorrecaoMonetaria;
     }
 
     try {
@@ -1296,7 +1306,16 @@ class _CotaResortDetailsScreenState extends State<CotaResortDetailsScreen> {
               const SizedBox(height: 8),
               _buildParcelaInfo(
                 'Valor',
-                Formatters.currency(parcela.valorParcela),
+                Formatters.currency(
+                  !isPaga
+                      ? (parcela.valorTotalComJuros > 0 ? parcela.valorTotalComJuros : parcela.valorParcela)
+                      : parcela.valorParcela,
+                ),
+                valueStyle: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 15,
+                  color: Colors.green.shade800,
+                ),
               ),
               const SizedBox(height: 8),
               _buildParcelaInfo(
@@ -1331,20 +1350,87 @@ class _CotaResortDetailsScreenState extends State<CotaResortDetailsScreen> {
                   ),
                 ],
               ],
-              if (!isPaga && parcela.valorJurosCalculado > 0) ...[
+
+              if (!_modoNegociacao && !isPaga && parcela.existeBoletoGerado && parcela.codigoBarrasBoleto != null && parcela.codigoBarrasBoleto!.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                const Divider(),
                 const SizedBox(height: 8),
-                _buildParcelaInfo(
-                  'Juros',
-                  Formatters.currency(parcela.valorJurosCalculado),
-                  valueColor: Colors.red,
-                ),
-                const SizedBox(height: 8),
-                _buildParcelaInfo(
-                  'Total com Juros',
-                  Formatters.currency(parcela.valorTotalComJuros),
-                  valueStyle: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14,
+                InkWell(
+                  onTap: () {
+                    Clipboard.setData(ClipboardData(text: parcela.codigoBarrasBoleto!));
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Código de barras copiado!'),
+                        backgroundColor: Colors.green,
+                        duration: Duration(seconds: 2),
+                      ),
+                    );
+                  },
+                  borderRadius: BorderRadius.circular(10),
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.green.shade50,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: Colors.green.shade200),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(Icons.receipt_long, size: 18, color: Colors.green.shade700),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Boleto gerado',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.green.shade800,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          'Essa parcela já tem o boleto gerado, clique para copiar o código de pagamento. Você também pode pagar via PIX, basta usar o botão de Negociar',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey.shade700,
+                            height: 1.3,
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(vertical: 10),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: Colors.green.shade300,
+                              style: BorderStyle.solid,
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.copy, size: 16, color: Colors.green.shade700),
+                              const SizedBox(width: 8),
+                              Text(
+                                'Copiar Código',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.green.shade700,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ],
