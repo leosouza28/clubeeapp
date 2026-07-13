@@ -72,6 +72,9 @@ class ParticipanteCarteirinhaModel {
   }
 
   String get tipoLabel => dependencia == 'TITULAR' ? 'Titular' : 'Dependente';
+
+  String get opDisponivelLabel =>
+      opDisponivel == 'RENOVACAO' ? 'Renovação' : 'Emissão';
 }
 
 class VendaCarteirinhaPendenteModel {

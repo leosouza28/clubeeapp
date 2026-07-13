@@ -5,6 +5,7 @@ import 'package:qr_flutter/qr_flutter.dart';
 import '../models/cortesia_link_model.dart';
 import '../services/api_service.dart';
 import '../services/client_service.dart';
+import '../services/review_service.dart';
 
 class CortesiaLinkScreen extends StatefulWidget {
   final String cortesiaId;
@@ -262,7 +263,9 @@ class _CortesiaLinkScreenState extends State<CortesiaLinkScreen> {
                         '• Preencha os dados de cada convidado\n'
                         '• Para brasileiros, use CPF. Para estrangeiros, use Passaporte\n'
                         '• Todos os campos são obrigatórios\n'
-                        '• Se o convidado for responsável por um menor de idade, marque a opção e preencha os dados do menor',
+                        '• Se o convidado for menor de idade, será necessário preencher as informações do responsável e marcar a opção "Responsável por menor de idade"; em seguida, insira os dados do menor.\n'
+                        '• Ao marcar a opção menor de idade, a cortesia pertencerá somente ao menor.\n'
+                        '• As informações de um responsável podem ser repetidas várias vezes caso houver mais de um convidado menor de idade.',
                         style: TextStyle(
                           color: Colors.blue.shade900,
                           fontSize: 14,
@@ -815,6 +818,7 @@ class _CortesiaLinkScreenState extends State<CortesiaLinkScreen> {
               MaterialPageRoute(
                 builder: (context) => CortesiaSucessoScreen(
                   cortesiaData: cortesiaAtualizada.data!,
+                  fromSuccessfulSubmit: true,
                 ),
               ),
             );
@@ -1142,8 +1146,13 @@ class _DataInputFormatter extends TextInputFormatter {
 
 class CortesiaSucessoScreen extends StatefulWidget {
   final Map<String, dynamic> cortesiaData;
+  final bool fromSuccessfulSubmit;
 
-  const CortesiaSucessoScreen({super.key, required this.cortesiaData});
+  const CortesiaSucessoScreen({
+    super.key,
+    required this.cortesiaData,
+    this.fromSuccessfulSubmit = false,
+  });
 
   @override
   State<CortesiaSucessoScreen> createState() => _CortesiaSucessoScreenState();
@@ -1153,6 +1162,14 @@ class _CortesiaSucessoScreenState extends State<CortesiaSucessoScreen> {
   @override
   void initState() {
     super.initState();
+    if (widget.fromSuccessfulSubmit) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        Future.delayed(const Duration(milliseconds: 1200), () {
+          if (!mounted) return;
+          ReviewService.instance.maybeRequestReview();
+        });
+      });
+    }
   }
 
   String _getStatusText(String status) {

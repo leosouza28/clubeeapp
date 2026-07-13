@@ -683,60 +683,91 @@ class _TituloDetailsScreenState extends State<TituloDetailsScreen> {
                   ],
                   if (titular.carteirinhaEmitida) ...[
                     const SizedBox(height: 8),
-                    Row(
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                        Text(
+                          'Status: Emitida',
+                          style: TextStyle(
+                            color: Colors.blue.shade700,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 12,
+                          ),
+                        ),
+                        if (titular.carteirinhaDataEmissao != null)
+                          Text(
+                            'Data: ${_formatDate(titular.carteirinhaDataEmissao!)}',
+                            style: TextStyle(
+                              color: Colors.grey[600],
+                              fontSize: 11,
+                            ),
+                          ),
+                        if ((titular.carteirinhaUrl != null &&
+                                titular.carteirinhaUrl!.isNotEmpty) ||
+                            _titularPodeTrocarFoto(titular)) ...[
+                          const SizedBox(height: 8),
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
                             children: [
-                              Text(
-                                'Status: Emitida',
-                                style: TextStyle(
-                                  color: Colors.blue.shade700,
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 12,
+                              if (titular.carteirinhaUrl != null &&
+                                  titular.carteirinhaUrl!.isNotEmpty)
+                                OutlinedButton.icon(
+                                  onPressed: () {
+                                    _viewCarteirinhaPDF(titular.carteirinhaUrl!);
+                                  },
+                                  icon: Icon(Icons.picture_as_pdf, size: 14),
+                                  label: Text(
+                                    'Ver Carteirinha',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: Colors.red.shade600,
+                                    side: BorderSide(
+                                      color: Colors.red.shade600,
+                                      width: 1.5,
+                                    ),
+                                    padding: EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 4,
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                  ),
                                 ),
-                              ),
-                              if (titular.carteirinhaDataEmissao != null)
-                                Text(
-                                  'Data: ${_formatDate(titular.carteirinhaDataEmissao!)}',
-                                  style: TextStyle(
-                                    color: Colors.grey[600],
-                                    fontSize: 11,
+                              if (_titularPodeTrocarFoto(titular))
+                                OutlinedButton.icon(
+                                  onPressed: _showTrocarFotoTitularOptions,
+                                  icon: Icon(Icons.photo_camera, size: 14),
+                                  label: Text(
+                                    'Trocar Foto',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: Colors.blue.shade600,
+                                    side: BorderSide(
+                                      color: Colors.blue.shade600,
+                                      width: 1.5,
+                                    ),
+                                    padding: EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 4,
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
                                   ),
                                 ),
                             ],
                           ),
-                        ),
-                        if (titular.carteirinhaUrl != null &&
-                            titular.carteirinhaUrl!.isNotEmpty)
-                          OutlinedButton.icon(
-                            onPressed: () {
-                              _viewCarteirinhaPDF(titular.carteirinhaUrl!);
-                            },
-                            icon: Icon(Icons.picture_as_pdf, size: 14),
-                            label: Text(
-                              'Ver Carteirinha',
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: Colors.red.shade600,
-                              side: BorderSide(
-                                color: Colors.red.shade600,
-                                width: 1.5,
-                              ),
-                              padding: EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 4,
-                              ),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                            ),
-                          ),
+                        ],
                       ],
                     ),
                   ],
@@ -1190,7 +1221,7 @@ class _TituloDetailsScreenState extends State<TituloDetailsScreen> {
                 ),
                 const SizedBox(width: 8),
                 Text(
-                  'Pacote de Cortesias',
+                  'Pacote Cortesias',
                   style: Theme.of(
                     context,
                   ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
@@ -1666,13 +1697,14 @@ class _TituloDetailsScreenState extends State<TituloDetailsScreen> {
                   const SizedBox(height: 12),
                 ],
                 if (temElegiveis) ...[
-                  Row(
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
                     children: [
                       _buildCarteirinhaResumoChip(
                         '$qtdEmissao para emitir',
                         Colors.blue,
                       ),
-                      const SizedBox(width: 8),
                       _buildCarteirinhaResumoChip(
                         '$qtdRenovacao para renovar',
                         Colors.indigo,
@@ -2476,6 +2508,19 @@ class _TituloDetailsScreenState extends State<TituloDetailsScreen> {
 
   // Mostra opções para gerar carteirinha
   Future<void> _showGerarCarteirinhaOptions() async {
+    await _showTitularFotoOptions(
+      titulo: 'Escolha a foto para carteirinha',
+    );
+  }
+
+  // Mostra opções para trocar foto do titular (somente sem foto definida)
+  Future<void> _showTrocarFotoTitularOptions() async {
+    await _showTitularFotoOptions(
+      titulo: 'Trocar foto da carteirinha',
+    );
+  }
+
+  Future<void> _showTitularFotoOptions({required String titulo}) async {
     // Mostra loading
     showDialog(
       context: context,
@@ -2521,9 +2566,9 @@ class _TituloDetailsScreenState extends State<TituloDetailsScreen> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Escolha a foto para carteirinha',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                Text(
+                  titulo,
+                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 16),
                 ListTile(
@@ -2618,6 +2663,8 @@ class _TituloDetailsScreenState extends State<TituloDetailsScreen> {
             toolbarTitle: 'Recortar Foto',
             toolbarColor: Theme.of(context).primaryColor,
             toolbarWidgetColor: Colors.white,
+            statusBarLight: false,
+            navBarLight: false,
             initAspectRatio: CropAspectRatioPreset.square,
             lockAspectRatio: true,
           ),
@@ -2883,6 +2930,8 @@ class _TituloDetailsScreenState extends State<TituloDetailsScreen> {
             toolbarTitle: 'Recortar Foto',
             toolbarColor: Theme.of(context).primaryColor,
             toolbarWidgetColor: Colors.white,
+            statusBarLight: false,
+            navBarLight: false,
             initAspectRatio: CropAspectRatioPreset.square,
             lockAspectRatio: true,
           ),
@@ -3037,6 +3086,11 @@ class _TituloDetailsScreenState extends State<TituloDetailsScreen> {
     if (_tituloDetails == null) return false;
     return _tituloDetails!.situacao.toUpperCase() == 'ATIVO' &&
         !_tituloDetails!.bloqueado;
+  }
+
+  bool _titularPodeTrocarFoto(TitularModel titular) {
+    return titular.carteirinhaEmitida &&
+        (titular.carteirinhaFoto == null || titular.carteirinhaFoto!.isEmpty);
   }
 
   // Função auxiliar para determinar o status da carteirinha

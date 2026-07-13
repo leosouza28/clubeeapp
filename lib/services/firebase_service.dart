@@ -224,17 +224,8 @@ class FirebaseService {
       );
       print('📱 Dados da mensagem: ${message.data}');
     }
-    if (_hasNotificationAction(message)) {
-      // Se não há listeners, guarda a mensagem como pendente
-      if (!_notificationActionController.hasListener) {
-        if (kDebugMode) {
-          print('⏳ Nenhum listener ativo, guardando mensagem como pendente');
-        }
-        _pendingActionMessage = message;
-      } else {
-        _notificationActionController.add(message);
-      }
-    }
+    // Não redireciona ao receber em foreground — só ao toque
+    // (onMessageOpenedApp / getInitialMessage).
   }
 
   void _handleMessageOpenedApp(RemoteMessage message) {
@@ -242,16 +233,32 @@ class FirebaseService {
       print('🚀 App aberto via notificação: ${message.notification?.title}');
       print('🚀 Dados da mensagem: ${message.data}');
     }
-    if (_hasNotificationAction(message)) {
-      // Se não há listeners, guarda a mensagem como pendente
-      if (!_notificationActionController.hasListener) {
-        if (kDebugMode) {
-          print('⏳ Nenhum listener ativo, guardando mensagem como pendente');
-        }
-        _pendingActionMessage = message;
-      } else {
-        _notificationActionController.add(message);
+    _emitNotificationAction(message);
+  }
+
+  void _emitNotificationAction(RemoteMessage message) {
+    if (!_hasNotificationAction(message)) return;
+
+    if (!_notificationActionController.hasListener) {
+      if (kDebugMode) {
+        print('⏳ Nenhum listener ativo, guardando mensagem como pendente');
       }
+      _pendingActionMessage = message;
+    } else {
+      _notificationActionController.add(message);
+    }
+  }
+
+  /// Simula toque em notificação com redirect (debug / testes).
+  static void simulateNotificationAction(Map<String, dynamic> data) {
+    final message = RemoteMessage(data: data.map(
+      (key, value) => MapEntry(key, value?.toString() ?? ''),
+    ));
+    if (!_hasNotificationAction(message)) return;
+    if (!_notificationActionController.hasListener) {
+      _pendingActionMessage = message;
+    } else {
+      _notificationActionController.add(message);
     }
   }
 

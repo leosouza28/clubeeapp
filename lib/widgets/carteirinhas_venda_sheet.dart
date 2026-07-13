@@ -143,6 +143,106 @@ class _CarteirinhasSelecaoSheetState extends State<_CarteirinhasSelecaoSheet> {
     }
   }
 
+  Widget _buildComoFuncionaInfo() {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.blue.shade50,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Colors.blue.shade100),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(
+                  Icons.info_outline,
+                  size: 18,
+                  color: Colors.blue.shade700,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Como funciona',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.blue.shade900,
+                      fontSize: 14,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Marque o titular e/ou dependentes que desejam emitir ou renovar a carteirinha. '
+              'Quem já possui carteirinha vigente não aparece nesta lista.\n\n'
+              'Confira o valor de cada operação (emissão ou renovação), veja o total no rodapé '
+              'e toque em Gerar PIX. Copie o código ou pague pelo app do seu banco.\n\n'
+              'Após a confirmação do pagamento, as carteirinhas são liberadas automaticamente '
+              'e ficam disponíveis nesta tela.',
+              style: TextStyle(
+                color: Colors.blue.shade900,
+                fontSize: 13,
+                height: 1.45,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildParticipanteTile(ParticipanteCarteirinhaModel p) {
+    final selected = _selecionados.contains(p.clienteId);
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      child: CheckboxListTile(
+        value: selected,
+        onChanged: (v) {
+          setState(() {
+            if (v == true) {
+              _selecionados.add(p.clienteId);
+            } else {
+              _selecionados.remove(p.clienteId);
+            }
+          });
+        },
+        title: Text(
+          p.clienteNome,
+          style: const TextStyle(fontWeight: FontWeight.w600),
+        ),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('${p.tipoLabel} • ${p.statusCarteirinha}'),
+            if (p.opDisponivel != null)
+              Text(
+                '${p.opDisponivelLabel} • ${Formatters.currency(p.valorUnitario ?? 0)}',
+                style: TextStyle(
+                  color: Theme.of(context).primaryColor,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+          ],
+        ),
+        secondary: CircleAvatar(
+          backgroundColor:
+              Theme.of(context).primaryColor.withValues(alpha: 0.1),
+          child: Icon(
+            p.dependencia == 'TITULAR' ? Icons.person : Icons.people,
+            color: Theme.of(context).primaryColor,
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Padding(
@@ -155,203 +255,117 @@ class _CarteirinhasSelecaoSheetState extends State<_CarteirinhasSelecaoSheet> {
         minChildSize: 0.5,
         maxChildSize: 0.95,
         builder: (context, scrollController) {
-          return Column(
-            children: [
-              Container(
-                margin: const EdgeInsets.only(top: 12, bottom: 8),
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade300,
-                  borderRadius: BorderRadius.circular(2),
+          return SafeArea(
+            child: Column(
+              children: [
+                Container(
+                  margin: const EdgeInsets.only(top: 12, bottom: 8),
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
                 ),
-              ),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Row(
-                  children: [
-                    Icon(Icons.badge, color: Theme.of(context).primaryColor),
-                    const SizedBox(width: 8),
-                    const Expanded(
-                      child: Text(
-                        'Selecionar Carteirinhas',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Row(
+                    children: [
+                      Icon(Icons.badge, color: Theme.of(context).primaryColor),
+                      const SizedBox(width: 8),
+                      const Expanded(
+                        child: Text(
+                          'Selecionar Carteirinhas',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
-                    ),
-                    IconButton(
-                      onPressed: () => Navigator.of(context).pop(),
-                      icon: const Icon(Icons.close),
-                    ),
-                  ],
+                      IconButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        icon: const Icon(Icons.close),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-                child: Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(12),
+                Expanded(
+                  child: ListView.builder(
+                    controller: scrollController,
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    itemCount: _elegiveis.length + 1,
+                    itemBuilder: (context, index) {
+                      if (index == 0) {
+                        return _buildComoFuncionaInfo();
+                      }
+                      return _buildParticipanteTile(_elegiveis[index - 1]);
+                    },
+                  ),
+                ),
+                if (_error != null)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Text(
+                      _error!,
+                      style: TextStyle(color: Colors.red.shade700),
+                    ),
+                  ),
+                Container(
+                  padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: Colors.blue.shade50,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.blue.shade100),
+                    color: Colors.grey.shade50,
+                    border:
+                        Border(top: BorderSide(color: Colors.grey.shade200)),
                   ),
                   child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Icon(
-                            Icons.info_outline,
-                            size: 18,
-                            color: Colors.blue.shade700,
+                          const Text(
+                            'Total',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              'Como funciona',
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                color: Colors.blue.shade900,
-                                fontSize: 14,
-                              ),
+                          Text(
+                            Formatters.currency(_total),
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: Theme.of(context).primaryColor,
                             ),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Marque o titular e/ou dependentes que desejam emitir ou renovar a carteirinha. '
-                        'Quem já possui carteirinha vigente não aparece nesta lista.\n\n'
-                        'Confira o valor de cada operação (emissão ou renovação), veja o total no rodapé '
-                        'e toque em Gerar PIX. Copie o código ou pague pelo app do seu banco.\n\n'
-                        'Após a confirmação do pagamento, as carteirinhas são liberadas automaticamente '
-                        'e ficam disponíveis nesta tela.',
-                        style: TextStyle(
-                          color: Colors.blue.shade900,
-                          fontSize: 13,
-                          height: 1.45,
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          onPressed: _isLoading ? null : _gerarPix,
+                          icon: _isLoading
+                              ? const SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : const Icon(Icons.pix),
+                          label: Text(
+                            _isLoading ? 'Gerando PIX...' : 'Gerar PIX',
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                          ),
                         ),
                       ),
                     ],
                   ),
                 ),
-              ),
-              Expanded(
-                child: ListView.builder(
-                  controller: scrollController,
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  itemCount: _elegiveis.length,
-                  itemBuilder: (context, index) {
-                    final p = _elegiveis[index];
-                    final selected = _selecionados.contains(p.clienteId);
-                    return Card(
-                      margin: const EdgeInsets.only(bottom: 8),
-                      child: CheckboxListTile(
-                        value: selected,
-                        onChanged: (v) {
-                          setState(() {
-                            if (v == true) {
-                              _selecionados.add(p.clienteId);
-                            } else {
-                              _selecionados.remove(p.clienteId);
-                            }
-                          });
-                        },
-                        title: Text(
-                          p.clienteNome,
-                          style: const TextStyle(fontWeight: FontWeight.w600),
-                        ),
-                        subtitle: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text('${p.tipoLabel} • ${p.statusCarteirinha}'),
-                            if (p.opDisponivel != null)
-                              Text(
-                                '${p.opDisponivel} • ${Formatters.currency(p.valorUnitario ?? 0)}',
-                                style: TextStyle(
-                                  color: Theme.of(context).primaryColor,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                          ],
-                        ),
-                        secondary: CircleAvatar(
-                          backgroundColor:
-                              Theme.of(context).primaryColor.withValues(alpha: 0.1),
-                          child: Icon(
-                            p.dependencia == 'TITULAR'
-                                ? Icons.person
-                                : Icons.people,
-                            color: Theme.of(context).primaryColor,
-                          ),
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
-              if (_error != null)
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Text(
-                    _error!,
-                    style: TextStyle(color: Colors.red.shade700),
-                  ),
-                ),
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade50,
-                  border: Border(top: BorderSide(color: Colors.grey.shade200)),
-                ),
-                child: Column(
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text(
-                          'Total',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        Text(
-                          Formatters.currency(_total),
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: Theme.of(context).primaryColor,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton.icon(
-                        onPressed: _isLoading ? null : _gerarPix,
-                        icon: _isLoading
-                            ? const SizedBox(
-                                width: 18,
-                                height: 18,
-                                child: CircularProgressIndicator(strokeWidth: 2),
-                              )
-                            : const Icon(Icons.pix),
-                        label: Text(_isLoading ? 'Gerando PIX...' : 'Gerar PIX'),
-                        style: ElevatedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
+              ],
+            ),
           );
         },
       ),
@@ -377,7 +391,7 @@ class _CarteirinhasPixSheet extends StatefulWidget {
 }
 
 class _CarteirinhasPixSheetState extends State<_CarteirinhasPixSheet> {
-  static const _pixDuracaoSegundos = 3600;
+  static const _pixDuracaoSegundos = 900;
 
   Timer? _verifyTimer;
   Timer? _countdownTimer;

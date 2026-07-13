@@ -9,6 +9,8 @@ class AppConfigModel {
   final String urlAdministrativoV2;
   final String urlCompliance;
   final String urlSiteCortesias;
+  final String iosAppStoreId;
+  final String androidPackageName;
 
   AppConfigModel({
     required this.id,
@@ -21,6 +23,8 @@ class AppConfigModel {
     required this.urlAdministrativoV2,
     required this.urlCompliance,
     required this.urlSiteCortesias,
+    this.iosAppStoreId = '',
+    this.androidPackageName = '',
   });
 
   factory AppConfigModel.fromJson(Map<String, dynamic> json) {
@@ -41,6 +45,8 @@ class AppConfigModel {
       urlAdministrativoV2: json['url_administrativo_v2'] ?? '',
       urlCompliance: json['url_compliance'] ?? '',
       urlSiteCortesias: json['url_site_cortesias'] ?? '',
+      iosAppStoreId: json['ios_app_store_id'] ?? '',
+      androidPackageName: json['android_package_name'] ?? '',
     );
   }
 
@@ -56,6 +62,8 @@ class AppConfigModel {
       'url_administrativo_v2': urlAdministrativoV2,
       'url_compliance': urlCompliance,
       'url_site_cortesias': urlSiteCortesias,
+      'ios_app_store_id': iosAppStoreId,
+      'android_package_name': androidPackageName,
     };
   }
 }

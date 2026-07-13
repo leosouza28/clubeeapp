@@ -2325,6 +2325,8 @@ class _AccountScreenState extends State<AccountScreen> {
             toolbarTitle: 'Cortar Foto de Perfil',
             toolbarColor: Theme.of(context).primaryColor,
             toolbarWidgetColor: Colors.white,
+            statusBarLight: false,
+            navBarLight: false,
             initAspectRatio: CropAspectRatioPreset.square,
             lockAspectRatio: true,
             hideBottomControls: false,

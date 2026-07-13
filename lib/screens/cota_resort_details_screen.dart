@@ -923,29 +923,10 @@ class _CotaResortDetailsScreenState extends State<CotaResortDetailsScreen> {
                     'Parcelas Selecionadas',
                     '${_parcelasSelecionadas.length}',
                   ),
-                  const SizedBox(height: 8),
-                  _buildResumoRow(
-                    'Valor Bruto',
-                    Formatters.currency(valorBrutoTotal),
-                  ),
-                  const SizedBox(height: 8),
-                  _buildResumoRow(
-                    'Juros',
-                    Formatters.currency(valorJurosTotal),
-                    valueColor: Colors.red,
-                  ),
-                  if (valorCorrecaoTotal > 0) ...[
-                    const SizedBox(height: 8),
-                    _buildResumoRow(
-                      'Correção Monetária',
-                      Formatters.currency(valorCorrecaoTotal),
-                      valueColor: Colors.red,
-                    ),
-                  ],
                   const Divider(),
                   const SizedBox(height: 8),
                   _buildResumoRow(
-                    'Valor Total',
+                    'Valor Total a Pagar',
                     Formatters.currency(valorTotal),
                     valueStyle: const TextStyle(
                       fontSize: 18,

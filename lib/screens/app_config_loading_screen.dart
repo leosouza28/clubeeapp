@@ -4,7 +4,6 @@ import '../services/client_service.dart';
 import '../services/deep_link_service.dart';
 import '../services/logging_service.dart';
 import '../widgets/main_navigation.dart';
-import 'cortesia_link_screen.dart';
 
 class AppConfigLoadingScreen extends StatefulWidget {
   const AppConfigLoadingScreen({super.key});
@@ -72,40 +71,18 @@ class _AppConfigLoadingScreenState extends State<AppConfigLoadingScreen> {
       if (info != null) {
         _log.success('Deep link parseado: ${info.toString()}');
 
-        // Limpar o link pendente antes de navegar
-        _deepLinkService.clearPendingDeepLink();
-
-        // Processar baseado no tipo
-        switch (info.type) {
-          case DeepLinkType.reservaViaLink:
-            if (info.id != null) {
-              _log.info('Navegando para CortesiaLinkScreen com ID: ${info.id}');
-
-              // Navegar direto para a tela de cortesia
-              Navigator.of(context).pushReplacement(
-                MaterialPageRoute(
-                  builder: (context) =>
-                      CortesiaLinkScreen(cortesiaId: info.id!),
-                ),
-              );
-              return; // Não navega para MainNavigation
-            }
-            break;
-
-          default:
-            // Para outros tipos, navega normalmente para MainNavigation
-            // O MainNavigationScreen vai processar
-            _log.info(
-              'Tipo de deep link será processado pelo MainNavigation: ${info.type}',
-            );
-            break;
-        }
+        // reservaViaLink (e demais tipos): mantém pending para o MainNavigation
+        // processar com push em cima da Home — evita tela preta ao Voltar.
+        _log.info(
+          'Tipo de deep link será processado pelo MainNavigation: ${info.type}',
+        );
       } else {
         _log.warning('Falha ao parsear deep link pendente');
+        _deepLinkService.clearPendingDeepLink();
       }
     }
 
-    // Navegar para tela principal (se não navegou para outra tela)
+    // Sempre navega para a tela principal (stack base do app)
     if (mounted) {
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(builder: (context) => const MainNavigationScreen()),

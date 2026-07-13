@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../services/client_service.dart';
 import '../services/api_service.dart';
 import '../services/auth_service.dart';
+import '../services/deep_link_service.dart';
 import '../models/noticia_model.dart';
 import '../models/notificacao_model.dart';
 import '../models/titulo_model.dart';
@@ -744,6 +745,20 @@ class _NewsScreenState extends State<NewsScreen> {
       _mostrarErroLink();
       return;
     }
+
+    final config = ClientService.instance.currentConfig;
+    final isAppScheme = uri.scheme == config.deepLinkScheme;
+    final isAppHost = (uri.scheme == 'https' || uri.scheme == 'http') &&
+        [
+          config.deepLinkHost.toLowerCase(),
+          ...config.alternativeHosts.map((h) => h.toLowerCase()),
+        ].contains(uri.host.toLowerCase());
+
+    if (isAppScheme || isAppHost) {
+      DeepLinkService.instance.simulateDeepLink(url);
+      return;
+    }
+
     try {
       final abriu = await launchUrl(uri, mode: LaunchMode.externalApplication);
       if (!abriu && mounted) _mostrarErroLink();

@@ -1,10 +1,12 @@
 import 'dart:async';
 import 'package:app_clubee/screens/discover_screen.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../screens/account_screen.dart';
+import '../screens/cortesia_link_screen.dart';
 import '../screens/home_screen.dart';
 import '../screens/news_screen.dart';
 import '../screens/reservas_screen.dart';
@@ -26,13 +28,16 @@ class MainNavigationScreen extends StatefulWidget {
 
 class _MainNavigationScreenState extends State<MainNavigationScreen> {
   int _currentIndex = 0;
-  final PageController _pageController = PageController();
+  /// Tabs já visitadas — só essas entram no IndexedStack (lazy load).
+  final Set<int> _initializedTabs = {0};
   final DeepLinkService _deepLinkService = DeepLinkService.instance;
   final LoggingService _log = LoggingService.instance;
   StreamSubscription<String>? _deepLinkSubscription;
   StreamSubscription<RemoteMessage>? _fcmActionSubscription;
 
   static const int accountIndex = 3;
+  static const int discoverIndex = 1;
+  static const int tabCount = 4;
 
   @override
   void initState() {
@@ -132,12 +137,34 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
       _mostrarErroLink();
       return;
     }
+
+    // Deep links do app: processar internamente (não abrir browser)
+    if (_isAppDeepLink(uri)) {
+      _log.info('🔔 redirect_link interno via DeepLinkService: $url');
+      _deepLinkService.simulateDeepLink(url);
+      return;
+    }
+
     try {
       final abriu = await launchUrl(uri, mode: LaunchMode.externalApplication);
       if (!abriu && mounted) _mostrarErroLink();
     } catch (_) {
       if (mounted) _mostrarErroLink();
     }
+  }
+
+  bool _isAppDeepLink(Uri uri) {
+    final config = ClientService.instance.currentConfig;
+    if (uri.scheme == config.deepLinkScheme) return true;
+    if (uri.scheme == 'https' || uri.scheme == 'http') {
+      final host = uri.host.toLowerCase();
+      final validHosts = [
+        config.deepLinkHost.toLowerCase(),
+        ...config.alternativeHosts.map((h) => h.toLowerCase()),
+      ];
+      return validHosts.contains(host);
+    }
+    return false;
   }
 
   void _mostrarErroLink() {
@@ -459,8 +486,49 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
         case DeepLinkType.home:
           _onTabTapped(0);
           break;
+        case DeepLinkType.reservaViaLink:
+          _deepLinkService.clearPendingDeepLink();
+          if (info.id != null && info.id!.isNotEmpty) {
+            _log.info('Navegando para CortesiaLinkScreen via MainNavigation: ${info.id}');
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (context) => CortesiaLinkScreen(cortesiaId: info.id!),
+              ),
+            );
+          } else {
+            _log.warning('Reserva via link sem ID');
+            _onTabTapped(0);
+          }
+          break;
+        case DeepLinkType.fcmTest:
+          _deepLinkService.clearPendingDeepLink();
+          if (kDebugMode) {
+            _log.info('🧪 FCM test redirect: ${info.id}');
+            switch (info.id) {
+              case 'cortesias':
+                FirebaseService.simulateNotificationAction({
+                  'redirect_cortesias': '1',
+                });
+                break;
+              case 'carteirinhas':
+                FirebaseService.simulateNotificationAction({
+                  'redirect_carteirinhas': '1',
+                });
+                break;
+              case 'link':
+                final url = info.queryParams['url'] ??
+                    'guaraapp://reserva-via-link/6a53b328b71cbe79cc2d0c2a';
+                FirebaseService.simulateNotificationAction({
+                  'redirect_link': url,
+                });
+                break;
+              default:
+                _log.warning('fcm-test desconhecido: ${info.id}');
+            }
+          }
+          break;
         default:
-          // Outros tipos serão processados pela HomeScreen
+          // Outros tipos podem ser processados pela HomeScreen
           _onTabTapped(0);
           break;
       }
@@ -470,26 +538,29 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   void _onTabTapped(int index) {
     setState(() {
       _currentIndex = index;
+      _initializedTabs.add(index);
     });
-    _pageController.animateToPage(
-      index,
-      duration: const Duration(milliseconds: 300),
-      curve: Curves.easeInOut,
-    );
   }
 
-  late final List<Widget> _screens = [
-    HomeScreen(onNavigateToAccount: () => _onTabTapped(accountIndex)),
-    DiscoverScreen(),
-    NewsScreen(),
-    AccountScreen(),
-  ];
+  Widget _buildTab(int index) {
+    switch (index) {
+      case 0:
+        return HomeScreen(onNavigateToAccount: () => _onTabTapped(accountIndex));
+      case discoverIndex:
+        return DiscoverScreen(isActive: _currentIndex == discoverIndex);
+      case 2:
+        return const NewsScreen();
+      case accountIndex:
+        return const AccountScreen();
+      default:
+        return const SizedBox.shrink();
+    }
+  }
 
   @override
   void dispose() {
     _deepLinkSubscription?.cancel();
     _fcmActionSubscription?.cancel();
-    _pageController.dispose();
     super.dispose();
   }
 
@@ -518,12 +589,14 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
         }
       },
       child: Scaffold(
-        body: PageView(
-          controller: _pageController,
-          // Se quiser desativar swipe, descomente:
-          physics: const NeverScrollableScrollPhysics(),
-          onPageChanged: (index) => setState(() => _currentIndex = index),
-          children: _screens,
+        body: IndexedStack(
+          index: _currentIndex,
+          children: List<Widget>.generate(tabCount, (index) {
+            if (!_initializedTabs.contains(index)) {
+              return const SizedBox.shrink();
+            }
+            return _buildTab(index);
+          }),
         ),
         bottomNavigationBar: BottomNavigationBar(
           type: BottomNavigationBarType.fixed,

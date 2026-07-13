@@ -53,7 +53,10 @@ class ApiService {
     final config = _clientConfigs[clientType]!;
     final String apiUrl;
     if (kDebugMode) {
-      apiUrl = 'http://192.168.68.118:${config['port']}';
+      // Android emulator: localhost do host é 10.0.2.2
+      // iOS simulator: localhost aponta para a máquina
+      final host = Platform.isAndroid ? '192.168.1.125' : 'localhost';
+      apiUrl = 'http://$host:${config['port']}';
     } else {
       apiUrl = config['apiUrl'];
     }

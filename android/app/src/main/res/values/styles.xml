@@ -15,4 +15,7 @@
     <style name="NormalTheme" parent="@android:style/Theme.Light.NoTitleBar">
         <item name="android:windowBackground">?android:colorBackground</item>
     </style>
+
+    <!-- Tema do UCrop (image_cropper) — evita toolbar sob a status bar -->
+    <style name="Ucrop.CropTheme" parent="Theme.AppCompat.Light.NoActionBar"/>
 </resources>

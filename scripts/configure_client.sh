@@ -137,37 +137,47 @@ import io.flutter.plugin.common.MethodChannel
 class MainActivity : FlutterActivity() {
     private val CHANNEL = "app.clubee/deeplink"
     private var initialLink: String? = null
+    private var methodChannel: MethodChannel? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        handleIntent(intent)
+        handleIntent(intent, notifyFlutter = false)
     }
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
-        handleIntent(intent)
+        // Necessário para app_links / plugins lerem o Intent atualizado (singleTop)
+        setIntent(intent)
+        handleIntent(intent, notifyFlutter = true)
     }
 
-    private fun handleIntent(intent: Intent?) {
-        intent?.data?.let { uri ->
-            initialLink = uri.toString()
-            flutterEngine?.dartExecutor?.binaryMessenger?.let { messenger ->
-                MethodChannel(messenger, CHANNEL).invokeMethod("routeUpdated", initialLink)
-            }
+    private fun handleIntent(intent: Intent?, notifyFlutter: Boolean) {
+        val uri = intent?.data ?: return
+        val link = uri.toString()
+        initialLink = link
+
+        if (notifyFlutter) {
+            methodChannel?.invokeMethod("routeUpdated", link)
         }
     }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
 
-        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL).setMethodCallHandler { call, result ->
-            when (call.method) {
-                "getInitialLink" -> {
-                    result.success(initialLink)
+        methodChannel = MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            CHANNEL
+        ).also { channel ->
+            channel.setMethodCallHandler { call, result ->
+                when (call.method) {
+                    "getInitialLink" -> result.success(initialLink)
+                    else -> result.notImplemented()
                 }
-                else -> {
-                    result.notImplemented()
-                }
+            }
+
+            // Se o Intent chegou no onCreate, envia assim que o engine estiver pronto
+            initialLink?.let { link ->
+                channel.invokeMethod("routeUpdated", link)
             }
         }
     }

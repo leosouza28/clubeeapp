@@ -94,6 +94,7 @@ class _DeepLinkHandlerWidgetState extends State<DeepLinkHandlerWidget> {
         _navigateToHome();
         break;
 
+      case DeepLinkType.fcmTest:
       case DeepLinkType.unknown:
         _log.warning('Unknown deep link type: ${info.route}');
         _showUnknownLinkDialog(link);

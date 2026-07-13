@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:logger/logger.dart';
 
 /// Serviço centralizado de logging para toda a aplicação
@@ -16,7 +17,8 @@ class LoggingService {
         printEmojis: true,
         dateTimeFormat: DateTimeFormat.onlyTimeAndSinceStart,
       ),
-      level: Level.debug,
+      // Em release, evita formatação cara de JSON/debug na UI isolate (ANR).
+      level: kReleaseMode ? Level.warning : Level.debug,
     );
   }
 
@@ -121,6 +123,7 @@ class LoggingService {
   /// [data] - Dados a serem formatados (Map, List ou String JSON)
   /// [title] - Título opcional para identificar o JSON
   void json(dynamic data, {String? title}) {
+    if (kReleaseMode) return;
     try {
       String jsonString;
 

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'dart:convert';
@@ -36,7 +37,7 @@ class _ReservasScreenState extends State<ReservasScreen>
       false; // Controla se o hash automático já foi processado
 
   // Ative/desative logs detalhados de parsing das reservas.
-  static const bool _debugReservaParsing = true;
+  static const bool _debugReservaParsing = kDebugMode;
 
   @override
   void initState() {

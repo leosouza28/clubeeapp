@@ -1,5 +1,9 @@
 import 'dart:async';
+import 'dart:io';
+
 import 'package:app_links/app_links.dart';
+import 'package:flutter/services.dart';
+
 import '../config/client_config.dart';
 import '../config/client_type.dart';
 import 'client_service.dart';
@@ -10,8 +14,13 @@ class DeepLinkService {
   static DeepLinkService get instance =>
       _instance ??= DeepLinkService._internal();
 
+  static const MethodChannel _nativeChannel = MethodChannel(
+    'app.clubee/deeplink',
+  );
+
   final _log = LoggingService.instance;
   String? _pendingDeepLink;
+  String? _lastHandledLink;
   late AppLinks _appLinks;
   StreamSubscription<Uri>? _linkSubscription;
 
@@ -27,6 +36,11 @@ class DeepLinkService {
   Future<void> initialize() async {
     _log.info('Initializing DeepLinkService with app_links package');
     _appLinks = AppLinks();
+
+    // Android: escuta o MethodChannel do MainActivity (fallback confiável)
+    if (Platform.isAndroid) {
+      _initializeNativeChannel();
+    }
 
     // Capturar link inicial (quando app é aberto via deep link)
     await _getInitialLink();
@@ -57,6 +71,19 @@ class DeepLinkService {
     );
   }
 
+  /// Fallback Android: MainActivity já captura o Intent num MethodChannel
+  void _initializeNativeChannel() {
+    _nativeChannel.setMethodCallHandler((call) async {
+      if (call.method == 'routeUpdated') {
+        final link = call.arguments as String?;
+        if (link != null && link.isNotEmpty) {
+          _log.info('Native Android deep link (routeUpdated): $link');
+          _handleIncomingDeepLink(link);
+        }
+      }
+    });
+  }
+
   /// Captura o link inicial se o app foi aberto via deep link
   Future<void> _getInitialLink() async {
     try {
@@ -64,13 +91,33 @@ class DeepLinkService {
 
       if (initialUri != null) {
         final String initialLink = initialUri.toString();
-        _log.info('Initial deep link detected: $initialLink');
+        _log.info('Initial deep link detected (app_links): $initialLink');
         _handleIncomingDeepLink(initialLink);
+        return;
+      }
+
+      _log.debug('No initial deep link from app_links');
+    } catch (e) {
+      _log.warning('Error getting initial link from app_links: $e');
+    }
+
+    // Fallback Android: Intent capturado no MainActivity antes do Dart subir
+    if (Platform.isAndroid) {
+      await _getInitialLinkFromNative();
+    }
+  }
+
+  Future<void> _getInitialLinkFromNative() async {
+    try {
+      final link = await _nativeChannel.invokeMethod<String>('getInitialLink');
+      if (link != null && link.isNotEmpty) {
+        _log.info('Initial deep link detected (native channel): $link');
+        _handleIncomingDeepLink(link);
       } else {
-        _log.debug('No initial deep link found');
+        _log.debug('No initial deep link from native channel');
       }
     } catch (e) {
-      _log.warning('Error getting initial link: $e');
+      _log.warning('Error getting initial link from native channel: $e');
     }
   }
 
@@ -79,9 +126,16 @@ class DeepLinkService {
     _log.info('Processing deep link: $link');
     _log.debug('Previous pending link: $_pendingDeepLink');
 
+    // Evita processar o mesmo link duas vezes (app_links + native)
+    if (_lastHandledLink == link && _pendingDeepLink == link) {
+      _log.debug('Ignoring duplicate deep link: $link');
+      return;
+    }
+
     final config = ClientService.instance.currentConfig;
 
     if (_isValidDeepLink(Uri.parse(link), config)) {
+      _lastHandledLink = link;
       _pendingDeepLink = link;
       _deepLinkController.add(link);
       _log.success('Deep link stored and broadcasted: $link');
@@ -251,6 +305,24 @@ class DeepLinkService {
             queryParams: uri.queryParameters,
           );
 
+        case 'fcm-test':
+          // Debug: simula toque em notificação push
+          // guaraapp://fcm-test/cortesias
+          // guaraapp://fcm-test/carteirinhas
+          // guaraapp://fcm-test/link?url=guaraapp://reserva-via-link/ID
+          final action = uri.host == 'fcm-test'
+              ? (pathSegments.isNotEmpty ? pathSegments[0] : null)
+              : (pathSegments.length > 1
+                  ? pathSegments[1]
+                  : (pathSegments.isNotEmpty ? pathSegments[0] : null));
+          return DeepLinkInfo(
+            originalUrl: link,
+            route: '/fcm-test',
+            type: DeepLinkType.fcmTest,
+            id: action,
+            queryParams: uri.queryParameters,
+          );
+
         default:
           return DeepLinkInfo(
             originalUrl: link,
@@ -287,6 +359,7 @@ enum DeepLinkType {
   eventos,
   promocoes,
   reservaViaLink,
+  fcmTest,
   unknown,
 }
 

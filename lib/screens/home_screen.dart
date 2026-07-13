@@ -15,7 +15,6 @@ import '../models/titulo_model.dart';
 import 'account_screen.dart';
 import 'reservas_screen.dart';
 import 'contato_clube_screen.dart';
-import 'cortesia_link_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   final VoidCallback? onNavigateToAccount;
@@ -58,7 +57,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _initializeDeepLinks() {
-    // Escutar novos deep links
+    // Escutar novos deep links (exceto reservaViaLink — MainNavigation trata)
     _deepLinkSubscription = _deepLinkService.onDeepLink.listen((link) {
       _log.info('🔗 Deep link received in HomeScreen: $link');
       _handleDeepLink(link);
@@ -85,11 +84,14 @@ class _HomeScreenState extends State<HomeScreen> {
           break;
 
         case DeepLinkType.reservaViaLink:
-          if (info.id != null) {
-            _navegarParaReservaViaLink(info.id!);
-          } else {
-            _log.warning('Reserva via link sem ID');
-          }
+          // Tratado pelo MainNavigation / AppConfigLoadingScreen para evitar
+          // push duplicado (Home + Main) no Android.
+          _log.debug(
+            'reservaViaLink ignorado na HomeScreen (delegado ao MainNavigation)',
+          );
+          break;
+
+        case DeepLinkType.fcmTest:
           break;
 
         case DeepLinkType.eventos:
@@ -123,19 +125,6 @@ class _HomeScreenState extends State<HomeScreen> {
           break;
       }
     });
-  }
-
-  void _navegarParaReservaViaLink(String reservaId) async {
-    _log.info('Navegando para reserva via link: $reservaId');
-
-    // Navegar diretamente para a tela de cortesia link
-    if (mounted) {
-      Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (context) => CortesiaLinkScreen(cortesiaId: reservaId),
-        ),
-      );
-    }
   }
 
   @override
